@@ -1,0 +1,7 @@
+"""
+ApexSovereign.ai Core Infrastructure
+Hybrid B2B SaaS Compute Utility & AI Automation Agency Engine
+"""
+
+__version__ = "1.0.0"
+__author__ = "ApexSovereign Operations"

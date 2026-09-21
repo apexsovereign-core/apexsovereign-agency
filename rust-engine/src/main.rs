@@ -1,32 +1,23 @@
-use axum::{
-    routing::{get, post},
-    http::StatusCode,
-    Json, Router,
-};
-use tower_http::services::ServeDir;
+use std::net::SocketAddr;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+mod routes;
+mod state;
 
 #[tokio::main]
 async fn main() {
-    // Build the Axum router with telemetry ingestion and static frontend fallback
-    let app = Router::new()
-        .route("/api/v1/telemetry/ingest", post(ingest_gpu_feed))
-        .fallback_service(
-            ServeDir::new("static")
-                .not_found_service(ServeDir::new("static/index.html"))
-        );
+    // Initialize structured tracing
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
+        .with(tracing_subscriber::fmt::layer())
+        .init();
 
-    // Bind to Render's required PORT or default to 3000
-    let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
-    let addr = format!("0.0.0.0:{}", port);
-    
-    println!("Neural mesh engine running on {}", addr);
-    
-    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+    let shared_state = state::AppState::new();
+    let app = routes::create_router(shared_state);
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+    tracing::info!("ApexSovereign engine listening on {}", addr);
+
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
-}
-
-// Temporary handler stub for GPU telemetry ingestion
-async fn ingest_gpu_feed(Json(payload): Json<serde_json::Value>) -> StatusCode {
-    // Process telemetry payload here
-    StatusCode::OK
 }

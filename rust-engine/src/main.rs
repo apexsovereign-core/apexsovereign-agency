@@ -7,6 +7,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::net::SocketAddr;
+use tower_http::services::ServeDir;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RawGpuNodeFeed {
@@ -32,13 +33,15 @@ async fn ingest_gpu_feed(
 async fn main() {
     tracing_subscriber::fmt().init();
 
+    // 1. Define API routes and fall back to serving static files from the "static" directory
+    let app = Router::new()
+        .route("/api/v1/telemetry/ingest", post(ingest_gpu_feed))
+        .fallback_service(ServeDir::new("static"));
+
     let port: u16 = env::var("PORT")
         .unwrap_or_else(|_| "8080".to_string())
         .parse()
         .expect("PORT must be a valid number");
-
-    let app = Router::new()
-        .route("/api/v1/telemetry/ingest", post(ingest_gpu_feed));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();

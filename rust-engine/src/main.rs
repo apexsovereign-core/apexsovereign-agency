@@ -111,10 +111,8 @@ async fn dispatch_llm_call(client: &reqwest::Client, prompt: &str) -> String {
     let openai_key = std::env::var("OPENAI_API_KEY").unwrap_or_default();
 
     if openai_key.is_empty() {
-        // Uses AppState client to check local gateway or simulate live execution
         format!("ApexSovereign Active Client Mode: Successfully routed prompt -> '{}'", prompt)
     } else {
-        // Real production OpenAI dispatch using the AppState reqwest client
         let payload = serde_json::json!({
             "model": "gpt-4o-mini",
             "messages": [{"role": "user", "content": prompt}]
@@ -128,7 +126,8 @@ async fn dispatch_llm_call(client: &reqwest::Client, prompt: &str) -> String {
             .await
         {
             Ok(resp) => {
-                if let Ok(json) = resp.json::<serde_json::Value>().json::<serde_json::Value>() {
+                // Fixed: Correctly awaiting/parsing response JSON once
+                if let Ok(json) = resp.json::<serde_json::Value>().await {
                     json["choices"][0]["message"]["content"]
                         .as_str()
                         .unwrap_or("Error parsing LLM response")
@@ -155,8 +154,6 @@ async fn handle_agent_task(
     );
 
     let task_id = format!("task_{}", uuid::Uuid::new_v4());
-    
-    // Utilize AppState client for dynamic execution
     let agent_output = dispatch_llm_call(&state.client, &payload.prompt).await;
     let status = "completed".to_string();
 
@@ -179,9 +176,8 @@ async fn handle_agent_task(
     }))
 }
 
-// Real-time Streaming Endpoint utilizing AppState client context
 async fn handle_streaming_task(
-    State(state): State<AppState>,
+    _state: State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<TaskRequest>,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, StatusCode> {
@@ -189,7 +185,6 @@ async fn handle_streaming_task(
 
     println!("Initiating real-time streaming pipeline for Client [{}]", payload.client_id);
 
-    // Dynamic execution step informed by client state capability
     let connection_status = if std::env::var("OPENAI_API_KEY").is_ok() {
         "Connected to external LLM provider via AppState client..."
     } else {

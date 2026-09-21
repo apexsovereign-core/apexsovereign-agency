@@ -1,5 +1,6 @@
 use axum::{
     extract::{State, Path},
+    http::{HeaderMap, StatusCode},
     routing::{get, post},
     Json, Router,
 };
@@ -117,14 +118,31 @@ struct OpenAiMessageContent {
 
 async fn handle_agent_task(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<TaskRequest>,
-) -> Json<TaskResponse> {
-    println!("Received B2B Task from Client [{}]: Type -> {}", payload.client_id, payload.task_type);
+) -> Result<Json<TaskResponse>, StatusCode> {
+    // Validate B2B Client API Key from Authorization header
+    let auth_header = headers
+        .get("authorization")
+        .and_then(|val| val.to_str().ok());
+
+    let expected_key = std::env::var("APEX_CLIENT_API_KEY").unwrap_or_else(|_| "secret_alpha_key_123".to_string());
+    let expected_auth = format!("Bearer {}", expected_key);
+
+    match auth_header {
+        Some(token) if token == expected_auth => {
+            // Authorized! Proceed with task execution
+        }
+        _ => {
+            return Err(StatusCode::UNAUTHORIZED);
+        }
+    }
+
+    println!("Received authenticated B2B Task from Client [{}]: Type -> {}", payload.client_id, payload.task_type);
 
     let task_id = format!("task_{}", uuid::Uuid::new_v4());
     let api_key = std::env::var("OPENAI_API_KEY").unwrap_or_default();
 
-    // Execute live LLM inference or fallback simulation
     let agent_output = if api_key.is_empty() {
         format!("ApexSovereign Engine [Simulated LLM Mode]: Processed prompt -> '{}'", payload.prompt)
     } else {
@@ -167,7 +185,6 @@ async fn handle_agent_task(
 
     let status = "completed".to_string();
 
-    // Persist complete task and output into SQLite database
     let _ = sqlx::query(
         "INSERT INTO tasks (id, client_id, task_type, prompt, agent_output, status) VALUES (?, ?, ?, ?, ?, ?)"
     )
@@ -180,18 +197,17 @@ async fn handle_agent_task(
     .execute(&state.db)
     .await;
 
-    Json(TaskResponse {
+    Ok(Json(TaskResponse {
         task_id,
         status,
         agent_output,
-    })
+    }))
 }
 
-// Handler to look up a task history record by its ID
 async fn get_task_by_id(
     State(state): State<AppState>,
     Path(id): Path<String>,
-) -> Result<Json<TaskRecord>, axum::http::StatusCode> {
+) -> Result<Json<TaskRecord>, StatusCode> {
     let result = sqlx::query_as::<_, TaskRecord>(
         "SELECT id, client_id, task_type, prompt, agent_output, status FROM tasks WHERE id = ?"
     )
@@ -201,7 +217,7 @@ async fn get_task_by_id(
 
     match result {
         Ok(Some(task)) => Ok(Json(task)),
-        Ok(None) => Err(axum::http::StatusCode::NOT_FOUND),
-        Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
+        Ok(None) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }

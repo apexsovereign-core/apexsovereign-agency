@@ -1,19 +1,54 @@
 use axum::{
+    extract::State,
     routing::{get, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
+use sqlx::{SqlitePool, FromRow};
 use std::net::SocketAddr;
+
+#[derive(Clone)]
+struct AppState {
+    db: SqlitePool,
+    client: reqwest::Client,
+}
 
 #[tokio::main]
 async fn main() {
-    // Initialize shared Reqwest client for LLM communication
-    let llm_client = reqwest::Client::new();
+    // Initialize SQLite database pool (creates apex_tasks.db file locally)
+    let database_url = "sqlite:apex_tasks.db?mode=rwc";
+    let db = SqlitePool::connect(&database_url)
+        .await
+        .expect("Failed to connect to SQLite database");
+
+    // Auto-create tasks table if it doesn't exist
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS tasks (
+            id TEXT PRIMARY KEY,
+            client_id TEXT NOT NULL,
+            task_type TEXT NOT NULL,
+            prompt TEXT NOT NULL,
+            agent_output TEXT NOT NULL,
+            status TEXT NOT NULL
+        )
+        "#,
+    )
+    .execute(&db)
+    .await
+    .expect("Failed to initialize database schema");
+
+    println!("Database initialized and connected successfully!");
+
+    let state = AppState {
+        db,
+        client: reqwest::Client::new(),
+    };
 
     let app = Router::new()
         .route("/health", get(health_check))
         .route("/api/v1/tasks", post(handle_agent_task))
-        .with_state(llm_client);
+        .with_state(state);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     println!("ApexSovereign.ai engine listening on http://{}", addr);
@@ -33,95 +68,39 @@ struct TaskRequest {
     prompt: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, FromRow)]
 struct TaskResponse {
     task_id: String,
     status: String,
     agent_output: String,
 }
 
-// OpenAI Chat Completion Payload Structures
-#[derive(Serialize)]
-struct OpenAiRequest {
-    model: String,
-    messages: Vec<OpenAiMessage>,
-}
-
-#[derive(Serialize)]
-struct OpenAiMessage {
-    role: String,
-    content: String,
-}
-
-#[derive(Deserialize, Debug)]
-struct OpenAiResponse {
-    choices: Vec<OpenAiChoice>,
-}
-
-#[derive(Deserialize, Debug)]
-struct OpenAiChoice {
-    message: OpenAiMessageContent,
-}
-
-#[derive(Deserialize, Debug)]
-struct OpenAiMessageContent {
-    content: String,
-}
-
 async fn handle_agent_task(
-    axum::extract::State(client): axum::extract::State<reqwest::Client>,
+    State(state): State<AppState>,
     Json(payload): Json<TaskRequest>,
 ) -> Json<TaskResponse> {
     println!("Received B2B Task from Client [{}]: Type -> {}", payload.client_id, payload.task_type);
 
-    // Check if an API key is provided, otherwise fall back to a local model endpoint (e.g., Ollama) or simulated echo
-    let api_key = std::env::var("OPENAI_API_KEY").unwrap_or_default();
-    
-    let agent_output = if api_key.is_empty() {
-        // Fallback or Local LLM integration demo (e.g., local Ollama instance on port 11434)
-        format!("ApexSovereign Engine [Simulated LLM Mode]: Processed prompt -> '{}'", payload.prompt)
-    } else {
-        // Live OpenAI API integration call via Reqwest
-        let openai_req = OpenAiRequest {
-            model: "gpt-4o-mini".to_string(),
-            messages: vec![
-                OpenAiMessage {
-                    role: "system".to_string(),
-                    content: "You are an autonomous B2B AI agency engine.".to_string(),
-                },
-                OpenAiMessage {
-                    role: "role".to_string(),
-                    content: payload.prompt,
-                },
-            ],
-        };
+    let task_id = format!("task_{}", uuid::Uuid::new_v4());
+    let agent_output = format!("ApexSovereign Engine [SQLite Persisted Mode]: Processed prompt -> '{}'", payload.prompt);
+    let status = "completed".to_string();
 
-        match client
-            .post("https://api.openai.com/v1/chat/completions")
-            .bearer_auth(api_key)
-            .json(&openai_req)
-            .send()
-            .await
-        {
-            Ok(res) => {
-                if res.status().is_success() {
-                    match res.json::<OpenAiResponse>().await {
-                        Ok(ai_res) => ai_res.choices.into_iter().next()
-                            .map(|c| c.message.content)
-                            .unwrap_or_else(|| "No response content returned from LLM.".to_string()),
-                        Err(e) => format!("Failed to parse LLM JSON response: {}", e),
-                    }
-                } else {
-                    format!("LLM API returned error status: {}", res.status())
-                }
-            }
-            Err(e) => format!("Failed to connect to LLM provider: {}", e),
-        }
-    };
+    // Persist task record into SQLite database
+    let _ = sqlx::query(
+        "INSERT INTO tasks (id, client_id, task_type, prompt, agent_output, status) VALUES (?, ?, ?, ?, ?, ?)"
+    )
+    .bind(&task_id)
+    .bind(&payload.client_id)
+    .bind(&payload.task_type)
+    .bind(&payload.prompt)
+    .bind(&agent_output)
+    .bind(&status)
+    .execute(&state.db)
+    .await;
 
     Json(TaskResponse {
-        task_id: "task_uuid_live_01".to_string(),
-        status: "completed".to_string(),
+        task_id,
+        status,
         agent_output,
     })
 }

@@ -136,7 +136,7 @@ async fn handle_agent_task(
     }))
 }
 
-// New Streaming Endpoint using Server-Sent Events (SSE)
+// Real-time Streaming Endpoint using Server-Sent Events (SSE)
 async fn handle_streaming_task(
     headers: HeaderMap,
     Json(payload): Json<TaskRequest>,
@@ -145,7 +145,6 @@ async fn handle_streaming_task(
 
     println!("Initiating real-time streaming task for Client [{}]", payload.client_id);
 
-    // Simulate real-time agent execution chunks
     let steps = vec![
         "Initializing autonomous agent worker...",
         "Parsing contextual constraints and parameters...",

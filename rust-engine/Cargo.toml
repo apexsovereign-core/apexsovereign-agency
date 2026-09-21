@@ -1,5 +1,5 @@
 [workspace]
 members = [
-    "rust-engine"
+    "."
 ]
 resolver = "2"

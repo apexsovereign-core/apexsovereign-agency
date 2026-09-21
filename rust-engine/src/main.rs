@@ -6,6 +6,7 @@ use axum::{
     Json, Router,
 };
 use futures_util::stream::{self, Stream};
+use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use sqlx::{SqlitePool, FromRow};
 use std::{convert::Infallible, net::SocketAddr, time::Duration};

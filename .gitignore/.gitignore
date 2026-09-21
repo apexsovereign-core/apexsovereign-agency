@@ -1,3 +1,12 @@
+# Rust build artifacts
 /target
+/rust-engine/target
+debug/
+target/
+
+# Local SQLite databases and temp files
 *.db
 *.db-journal
+
+# Environment variables or secrets (if any)
+.env

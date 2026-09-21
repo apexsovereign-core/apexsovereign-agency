@@ -33,7 +33,7 @@ async fn ingest_gpu_feed(
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    // 1. Define API routes and fall back to serving static files from the "static" directory
+    // API routes handle specific paths; anything else (like the root domain '/') falls back to 'static'
     let app = Router::new()
         .route("/api/v1/telemetry/ingest", post(ingest_gpu_feed))
         .fallback_service(ServeDir::new("static"));

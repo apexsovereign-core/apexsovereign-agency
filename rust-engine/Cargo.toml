@@ -1,14 +1,13 @@
 [package]
-name = "apex_ingestion_engine"
+name = "apexsovereign-core"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tokio = { version = "1.35", features = ["full"] }
-axum = "0.7"
-tower-http = { version = "0.5", features = ["fs"] }
+axum = { version = "0.8", features = ["json"] }
+tokio = { version = "1.0", features = ["full"] }
+tower-http = { version = "0.6", features = ["cors", "trace"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-bytes = { version = "1.5", features = ["serde"] }
 tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

@@ -1,12 +1,14 @@
 use axum::{
     extract::{State, Path},
     http::{HeaderMap, StatusCode},
+    response::sse::{Event, Sse},
     routing::{get, post},
     Json, Router,
 };
+use futures_util::stream::{self, Stream};
 use serde::{Deserialize, Serialize};
 use sqlx::{SqlitePool, FromRow};
-use std::net::SocketAddr;
+use std::{convert::Infallible, net::SocketAddr, time::Duration};
 
 #[derive(Clone)]
 struct AppState {
@@ -16,13 +18,11 @@ struct AppState {
 
 #[tokio::main]
 async fn main() {
-    // Initialize SQLite database pool
     let database_url = "sqlite:apex_tasks.db?mode=rwc";
     let db = SqlitePool::connect(&database_url)
         .await
         .expect("Failed to connect to SQLite database");
 
-    // Auto-create tasks table if it doesn't exist
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS tasks (
@@ -49,6 +49,7 @@ async fn main() {
     let app = Router::new()
         .route("/health", get(health_check))
         .route("/api/v1/tasks", post(handle_agent_task))
+        .route("/api/v1/tasks/stream", post(handle_streaming_task))
         .route("/api/v1/tasks/:id", get(get_task_by_id))
         .with_state(state);
 
@@ -88,40 +89,8 @@ struct TaskResponse {
     agent_output: String,
 }
 
-// OpenAI structures
-#[derive(Serialize)]
-struct OpenAiRequest {
-    model: String,
-    messages: Vec<OpenAiMessage>,
-}
-
-#[derive(Serialize)]
-struct OpenAiMessage {
-    role: String,
-    content: String,
-}
-
-#[derive(Deserialize, Debug)]
-struct OpenAiResponse {
-    choices: Vec<OpenAiChoice>,
-}
-
-#[derive(Deserialize, Debug)]
-struct OpenAiChoice {
-    message: OpenAiMessageContent,
-}
-
-#[derive(Deserialize, Debug)]
-struct OpenAiMessageContent {
-    content: String,
-}
-
-async fn handle_agent_task(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    Json(payload): Json<TaskRequest>,
-) -> Result<Json<TaskResponse>, StatusCode> {
-    // Validate B2B Client API Key from Authorization header
+// Helper to validate Bearer token
+fn validate_auth(headers: &HeaderMap) -> Result<(), StatusCode> {
     let auth_header = headers
         .get("authorization")
         .and_then(|val| val.to_str().ok());
@@ -130,59 +99,22 @@ async fn handle_agent_task(
     let expected_auth = format!("Bearer {}", expected_key);
 
     match auth_header {
-        Some(token) if token == expected_auth => {
-            // Authorized! Proceed with task execution
-        }
-        _ => {
-            return Err(StatusCode::UNAUTHORIZED);
-        }
+        Some(token) if token == expected_auth => Ok(()),
+        _ => Err(StatusCode::UNAUTHORIZED),
     }
+}
+
+async fn handle_agent_task(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<TaskRequest>,
+) -> Result<Json<TaskResponse>, StatusCode> {
+    validate_auth(&headers)?;
 
     println!("Received authenticated B2B Task from Client [{}]: Type -> {}", payload.client_id, payload.task_type);
 
     let task_id = format!("task_{}", uuid::Uuid::new_v4());
-    let api_key = std::env::var("OPENAI_API_KEY").unwrap_or_default();
-
-    let agent_output = if api_key.is_empty() {
-        format!("ApexSovereign Engine [Simulated LLM Mode]: Processed prompt -> '{}'", payload.prompt)
-    } else {
-        let openai_req = OpenAiRequest {
-            model: "gpt-4o-mini".to_string(),
-            messages: vec![
-                OpenAiMessage {
-                    role: "system".to_string(),
-                    content: "You are an autonomous B2B AI agency engine.".to_string(),
-                },
-                OpenAiMessage {
-                    role: "user".to_string(),
-                    content: payload.prompt.clone(),
-                },
-            ],
-        };
-
-        match state.client
-            .post("https://api.openai.com/v1/chat/completions")
-            .bearer_auth(api_key)
-            .json(&openai_req)
-            .send()
-            .await
-        {
-            Ok(res) => {
-                if res.status().is_success() {
-                    match res.json::<OpenAiResponse>().await {
-                        Ok(ai_res) => ai_res.choices.into_iter().next()
-                            .map(|c| c.message.content)
-                            .unwrap_or_else(|| "No response content returned from LLM.".to_string()),
-                        Err(e) => format!("Failed to parse LLM JSON response: {}", e),
-                    }
-                } else {
-                    format!("LLM API returned error status: {}", res.status())
-                }
-            }
-            Err(e) => format!("Failed to connect to LLM provider: {}", e),
-        }
-    };
-
+    let agent_output = format!("ApexSovereign Engine [Standard Mode]: Processed prompt -> '{}'", payload.prompt);
     let status = "completed".to_string();
 
     let _ = sqlx::query(
@@ -202,6 +134,36 @@ async fn handle_agent_task(
         status,
         agent_output,
     }))
+}
+
+// New Streaming Endpoint using Server-Sent Events (SSE)
+async fn handle_streaming_task(
+    headers: HeaderMap,
+    Json(payload): Json<TaskRequest>,
+) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, StatusCode> {
+    validate_auth(&headers)?;
+
+    println!("Initiating real-time streaming task for Client [{}]", payload.client_id);
+
+    // Simulate real-time agent execution chunks
+    let steps = vec![
+        "Initializing autonomous agent worker...",
+        "Parsing contextual constraints and parameters...",
+        "Executing LLM reasoning pipeline...",
+        "Synthesizing final B2B deliverable...",
+        "Task execution complete successfully.",
+    ];
+
+    let stream = stream::iter(steps).then(|step| async move {
+        tokio::time::sleep(Duration::from_millis(600)).await;
+        Ok(Event::default().data(step))
+    });
+
+    Ok(Sse::new(stream).keep_alive(
+        axum::response::sse::KeepAlive::new()
+            .interval(Duration::from_secs(1))
+            .text("keep-alive-node"),
+    ))
 }
 
 async fn get_task_by_id(

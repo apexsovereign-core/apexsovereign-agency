@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /billing/admin/
+Disallow: /leads/agent/memory-audit
+Disallow: /api/admin/
+
+Sitemap: https://apexsovereign.ai/sitemap.xml

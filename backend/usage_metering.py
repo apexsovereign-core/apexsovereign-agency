@@ -24,14 +24,16 @@ class UsageMeter:
 
     async def _persist_with_retry(self, tenant_id: str, event_type: str, quantity: int, metadata: Dict[str, Any]) -> str:
         url = os.getenv("SUPABASE_URL", "").rstrip("/")
+        if url.endswith("/rest/v1"):
+            url = url[:-len("/rest/v1")]
         key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
         if not url or not key:
             return "not_configured"
-        record = {"customer_id": tenant_id, "event_type": event_type, "quantity": quantity, "metadata": metadata}
+        record = {"tenant_id": tenant_id, "event_type": event_type, "severity": "INFO", "telemetry": {"quantity": quantity, **metadata}}
         for attempt in range(2):
             try:
                 async with httpx.AsyncClient(timeout=4.0) as client:
-                    response = await client.post(f"{url}/rest/v1/apex_transactions", headers={"apikey": key, "Authorization": f"Bearer {key}", "Prefer": "return=minimal"}, json=record)
+                    response = await client.post(f"{url}/rest/v1/system_logs", headers={"apikey": key, "Authorization": f"Bearer {key}", "Prefer": "return=minimal"}, json=record)
                     response.raise_for_status()
                     return "persisted"
             except (httpx.HTTPError, ValueError):

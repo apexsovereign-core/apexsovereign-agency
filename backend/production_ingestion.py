@@ -42,15 +42,17 @@ def _verify_signature(raw_body: bytes, signature: Optional[str]) -> bool:
 async def log_transaction_to_supabase(payload: IngestionPayload) -> None:
     """Write usage to Supabase REST without logging secrets or customer payloads."""
     base_url = os.getenv("SUPABASE_URL", "").rstrip("/")
+    if base_url.endswith("/rest/v1"):
+        base_url = base_url[:-len("/rest/v1")]
     service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
     if not base_url or not service_key:
         logger.warning("Supabase usage ledger is not configured; ingestion remains accepted but unpersisted")
         return
-    record = {"customer_id": payload.customer_id, "event_type": payload.event_type, "quantity": payload.quantity, "metadata": payload.metadata}
+    record = {"tenant_id": payload.customer_id, "event_type": payload.event_type, "severity": "INFO", "telemetry": {"quantity": payload.quantity, **payload.metadata}}
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.post(
-                f"{base_url}/rest/v1/apex_transactions",
+                f"{base_url}/rest/v1/system_logs",
                 headers={"apikey": service_key, "Authorization": f"Bearer {service_key}", "Content-Type": "application/json", "Prefer": "return=minimal"},
                 content=json.dumps(record),
             )

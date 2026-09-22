@@ -159,19 +159,16 @@ class V21Mesh:
         if not self.supabase_configured:
             return
         base = os.environ["SUPABASE_URL"].rstrip("/")
+        if base.endswith("/rest/v1"):
+            base = base[:-len("/rest/v1")]
         key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
         record = {
-            "event_id": item["event_id"],
             "tenant_id": item["tenant_id"],
             "event_type": item["event_type"],
             "quantity": item["quantity"],
-            "metadata": item["metadata"],
-            "source": item["source"],
-            "occurred_at": item["occurred_at"],
-            "previous_hash": item["previous_hash"],
-            "event_hash": item["event_hash"],
+            "metadata": {**item["metadata"], "v21_event_id": item["event_id"], "source": item["source"], "occurred_at": item["occurred_at"], "previous_hash": item["previous_hash"], "event_hash": item["event_hash"]},
         }
-        table = os.getenv("SUPABASE_V21_LEDGER_TABLE", "apex_v21_event_ledger")
+        table = os.getenv("SUPABASE_V21_LEDGER_TABLE", "apex_transactions")
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.post(
                 f"{base}/rest/v1/{table}",

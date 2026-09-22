@@ -34,8 +34,9 @@ async fn main() {
     });
 
     // Build Axum router and define your streaming endpoint
+    // Build your Axum router and add the route
     let app = Router::new()
-        .route("/api/stream", post(stream_llm_handler))
+        .route("/api/llm-stream", post(stream_llm_task_handler))
         .with_state(state);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 8080));

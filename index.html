@@ -1,98 +1,32 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ApexSovereign.ai | Autonomous Enterprise Work OS v8.5</title>
-    <meta name="description" content="ApexSovereign.ai autonomous enterprise Work OS with live compute allocation, agent swarm telemetry, signed ingestion, PayPal metering, and Supabase ledger integration." />
-    <meta name="apex-api-health" content="/health" />
-    <meta name="apex-api-ingestion" content="/v1/ingest" />
-    <meta name="apex-api-allocation" content="/v1/compute/allocate" />
-    
-    <!-- Primary Favicon & Web Tab Icon Suite (Exact Website Company Logo) -->
-    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAADAFBMVEVMaXFRl68ITmJZr8sbveMAutEQnMcft+cGrdQAwv8AlcpXp8AINUUzv+0NYXoUpNpXs80LT2c0wOFVutIupNEWjLNUudQKhKNBwfREv+kAicoyvOE3wuRFrtIGlrkXUnFXr8o2udwWdZlMj6gNk8kHhKAGYHZVoboTjbNIttQat+RAdohGgJNWu9ZVsM4LnMIEhK0xwuMVSWpUtdFUrMVEw/FPyOpMw+ouwedUvNoLaoQRs9xEr9IafaZSorhLiZ0JZHwQmLgMhJ9VvuNmyeZEv+RcrcdVstA4tdlUvNwRqtM7a3wOkK4/v/8KZH1UvuBInLxgs9BQttpax91Hs9FCwvIHa4tGhJ45qr5dsMs9tNYGj7lOj6QOco1UtdtVtdRXo7pHudgORl1TpboPgZ89wfY2YG9UtNZWrMRCuNsSosZTnbMwVmQGrM4XkbgLPFIHepxEsdY4a4YDnMgHhqZBeZIIDBUHDBQRJkEQJD8QJD0HDBYGCxMQIjsLLT4PITkNHzYfVnUKS2ESKEMJEBkUPVEIWW4OFigIDhkPKT4PLkUQK0EjYoMIGCQTL0wRKkcHDRcJV20dQGoYTV4ZTmEIQFQJDhcKMEAoWX4HN0oIIi4OJDccSGUNPlMRJkAXS1sbTm4PHDAIVWoMMEEWSVgbRGIWNFkNFCUnh5gLEiEWMEokoL8aNFALLDsGEx8NJTwPFyAjnLofPFcSGyYMEhsPJkIZPGARL0gVKkYSLEUZRWQjRmAiU34cPmciTm8pc5YPGCsseJ8dUnUkUXMUSWQWJC4ONUozZH8Vh50NIjwUSF0vW3UqUGste54SPlkXQF8ziq4rTFkPWHEJOEcWgpcYTFwkU3Yob5IwdJsHLz8mVXkbLjgmRlQHXHEPJjoJR10ONkshOEUZYnUVWHITUmwXITMhTGwaO2Mrc50SMk4ohp4TVXATIjURYn4SWnYTNEgZOV8JHyofSmgfR3QIKDc+jJ0SNFE9i5wINkd/yNUMQlaHzd0chJpDeoVIdYsWSFakp59ZAAAAdnRSTlMA/f77DwNwChYBDvv+FvoH+f5O8Z7f699GXSc9Yc1u/vCb9/4T1fj92cgn/f3k6W21Lv309DignyHZ/iy59/v9+Ljzrv10/OJ6zlf+4gz+vv77qPyzKvf+/vuQefz5udb6nvz68x3+yveKjfv+JfP97qX+S9b+Da4pxwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAeFJREFUOMtjYCARmJvhl2cPdmHHqyAoIsAZn7xvwomzgSx4FMTduXLhtD9ued7sqY9unI/kxakg/eHdKTMaz3jikk9lrG6bMqOnws0Ch4L422UTJ9+6XrnbErt8aEx1b9PkawebK7gNsSpwP1rGNPvq4T27KjfpYpM3ta8ua2ufv29SY1WFujQWBXqby8onts9/trentnKNGKa8hE51efmi5Us+Pd9fX1XBKIShQGFDWfmsX8uXzPnwYmdt5SphdHlJbZABC1f+X7rs8xygEcoyqPKcJlvKymva2lf+/bdsUmNDbeUOY04UBa7eQPkvf1as+Pn7+9dX54BGhHsgy7NmTCsrvzmXp+VH69IFLZdPHamtahZgRVKQmVZWPvPYg48zOxZ/618wq7X1Se280iiEPD/3tLKpXQeapndMWPyysu/Q46fvX1dVCPDDFSTmlN3vXMjn1NtRvbjvZP+2PL433e/mFRXCU2rytKZ7ST7WHA4Tyuu212+15cgtEZz9tpmZC6og5KLg3BQvIEOfp6auq8GIDcgsLsi/dNwGIs9i5xebBXGy6rq67vUakJCJDrNiVgEzNTc6whIyh9raTiUOKIfLYLUsmKGohfCPHJM8G4InJYIZqeKiBPImFxcDtQEAmn21k4RBefgAAAAASUVORK5CYII=" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=20260920" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=20260920" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260920" />
-    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=20260920" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20260920" />
-    <link rel="manifest" href="/site.webmanifest?v=20260920" />
-    
-    <meta name="theme-color" content="#06B6D4" />
-    <meta name="apple-mobile-web-app-title" content="ApexSovereign.ai" />
-    <meta name="application-name" content="ApexSovereign.ai" />
-
-    <!-- Open Graph / Social Sharing (GitHub, Vercel, Slack, X) -->
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="ApexSovereign.ai" />
-    <meta property="og:title" content="ApexSovereign.ai | The Sovereign Global Work OS" />
-    <meta property="og:description" content="Dominate the Future: Autonomous Intelligence, Absolute Scale. Enterprise Work OS, autonomous compute broker, and idempotent financial ledger backend." />
-    <meta property="og:image" content="https://apexsovereign.ai/logo.png" />
-    <meta property="og:image:width" content="512" />
-    <meta property="og:image:height" content="512" />
-    <meta property="og:image:alt" content="ApexSovereign.ai Official Stealth Delta Logo" />
-
-    <!-- Twitter Card Tags -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@ApexSovereignAI" />
-    <meta name="twitter:title" content="ApexSovereign.ai | The Sovereign Global Work OS" />
-    <meta name="twitter:description" content="Autonomous Multi-Agent Work OS, live compute broker, and idempotent financial ledger backed by zero-trust security." />
-    <meta name="twitter:image" content="https://apexsovereign.ai/logo.png" />
-
-    <!-- Structured JSON-LD Schema (Organization & SoftwareApplication) -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@graph": [
-        {
-          "@type": "Organization",
-          "@id": "https://apexsovereign.ai/#organization",
-          "name": "ApexSovereign.ai",
-          "url": "https://apexsovereign.ai",
-          "logo": {
-            "@type": "ImageObject",
-            "url": "https://apexsovereign.ai/logo.png",
-            "caption": "ApexSovereign.ai Official Stealth Delta Insignia Logomark"
-          },
-          "description": "The Sovereign Global Work OS, autonomous compute broker, and multi-agent enterprise execution mesh."
-        },
-        {
-          "@type": "SoftwareApplication",
-          "@id": "https://apexsovereign.ai/#software",
-          "name": "ApexSovereign Enterprise Work OS",
-          "applicationCategory": "BusinessApplication",
-          "operatingSystem": "Cloud / Linux / Web",
-          "offers": {
-            "@type": "Offer",
-            "price": "29.00",
-            "priceCurrency": "USD",
-            "description": "Weekly-calibrated autonomous compute tariffs with live PayPal settlement"
-          }
-        }
-      ]
-    }
-    </script>
-  </head>
-  <body class="bg-slate-950 text-slate-100 antialiased selection:bg-cyan-500/30 selection:text-cyan-200">
-    <div id="root">
-      <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #020617; color: #f8fafc; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;">
-        <div style="position: relative; width: 64px; height: 64px; margin-bottom: 24px;">
-          <svg viewBox="0 0 200 200" width="64" height="64" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 0 16px rgba(6, 182, 212, 0.6)); animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;">
-            <polygon points="100,10 184,170 128,138 100,180 72,138 16,170" fill="#090E17" stroke="#06B6D4" stroke-width="4" stroke-linejoin="round"/>
-            <polygon points="100,10 16,170 78,114" fill="#03060A" stroke="#0284C7" stroke-width="1.2"/>
-            <polygon points="100,10 100,114 122,114" fill="#0284C7" stroke="#67E8F9" stroke-width="1.2"/>
-            <line x1="100" y1="10" x2="100" y2="180" stroke="#67E8F9" stroke-width="3" stroke-linecap="round"/>
-            <polygon points="100,108 104,114 100,120 96,114" fill="#FFFFFF" stroke="#67E8F9" stroke-width="1"/>
-          </svg>
-        </div>
-        <div style="font-size: 18px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 8px;">
-          ApexSovereign<span style="color: #06B6D4;">.ai</span>
-        </div>
-        <div style="font-size: 11px; color: #64748B; letter-spacing: 0.05em; text-transform: uppercase;">
-          Synchronizing Autonomous Neural Mesh...
-        </div>
-      </div>
-    </div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ApexSovereign.ai | Autonomous Enterprise Mesh</title>
+  <meta name="description" content="ApexSovereign.ai v21 autonomous enterprise execution mesh and control panel">
+  <style>
+    :root{--bg:#050912;--panel:#0b1422;--line:#1e3852;--text:#e6f4ff;--muted:#87a2b9;--cyan:#43e4ff;--green:#55e39b;--amber:#ffc857}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 75% -10%,#12314a 0,#050912 46%);color:var(--text);font:14px Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+    .shell{max-width:1440px;margin:auto;padding:24px 28px}.top{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:20px}.brand{display:flex;gap:13px;align-items:center}.mark{width:39px;height:39px;border:2px solid var(--cyan);transform:rotate(45deg);display:grid;place-items:center;box-shadow:0 0 28px #1a9ebd55}.mark i{width:15px;height:15px;background:var(--cyan);display:block}.brand b{font-size:20px;letter-spacing:-.5px}.brand span{color:var(--cyan)}.eyebrow{color:var(--muted);text-transform:uppercase;letter-spacing:.16em;font-size:10px}.live{display:flex;align-items:center;gap:8px;color:var(--green);font-weight:700}.dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 13px var(--green)}
+    .hero{padding:44px 0 30px;max-width:850px}.hero h1{font-size:clamp(32px,5vw,63px);line-height:1.02;margin:12px 0 16px;letter-spacing:-2px}.hero h1 em{font-style:normal;color:var(--cyan)}.hero p{color:var(--muted);font-size:16px;line-height:1.65;max-width:730px;margin:0}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:linear-gradient(145deg,#0d1b2b,#08111d);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 18px 40px #00000020}.metric{font-size:25px;font-weight:800;margin-top:10px}.good{color:var(--green)}.cyan{color:var(--cyan)}.warn{color:var(--amber)}
+    .note{color:var(--muted);font-size:11px;line-height:1.5}.main{display:grid;grid-template-columns:1.35fr .65fr;gap:14px;margin-top:14px}.card h2{font-size:15px;margin:0 0 16px}.card h2 span{float:right;color:var(--muted);font-size:11px;font-weight:500}.bar{height:8px;border-radius:20px;background:#14283b;overflow:hidden;margin:12px 0 20px}.bar i{display:block;height:100%;width:72%;background:linear-gradient(90deg,var(--cyan),var(--green));border-radius:20px}.event{display:grid;grid-template-columns:10px 1fr auto;gap:12px;align-items:start;border-top:1px solid #183149;padding:12px 0}.event:first-of-type{border-top:0}.event .dot{margin-top:5px}.event b{font-size:12px}.event p{margin:4px 0 0;color:var(--muted);font-size:11px}.event time{color:var(--muted);font-size:10px}.form{display:grid;gap:10px}.form input,.form select{width:100%;background:#07111d;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:12px}.btn{border:0;border-radius:8px;padding:12px 15px;background:var(--cyan);color:#031019;font-weight:800;cursor:pointer}.status{display:flex;justify-content:space-between;gap:12px;color:var(--muted);font-size:12px;margin:11px 0}.status strong{color:var(--text);font-weight:600}.footer{padding:28px 0 8px;color:var(--muted);font-size:11px;display:flex;justify-content:space-between}.toast{position:fixed;right:22px;bottom:22px;max-width:360px;background:#10263a;border:1px solid var(--cyan);border-radius:10px;padding:13px 15px;display:none}
+    @media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.main{grid-template-columns:1fr}}@media(max-width:560px){.shell{padding:18px 14px}.grid{grid-template-columns:1fr 1fr}.hero{padding-top:30px}.hero h1{font-size:40px}.footer{display:block;line-height:1.8}}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="top"><div class="brand"><div class="mark"><i></i></div><div><b>ApexSovereign<span>.ai</span></b><div class="eyebrow">Autonomous Enterprise Work OS · v21.0</div></div></div><div class="live"><i class="dot"></i><span id="liveLabel">MESH ONLINE</span></div></header>
+    <section class="hero"><div class="eyebrow">Executive control plane</div><h1>Operate the enterprise at <em>machine speed.</em></h1><p>Federated execution, cryptographic event lineage, compliance gates, and usage metering unified behind one sovereign runtime. Provision guarded workflows and watch the mesh route work in real time.</p></section>
+    <section class="grid"><div class="card"><div class="eyebrow">Supervisor</div><div class="metric good" id="supervisor">—</div><div class="note">autonomous routing loop</div></div><div class="card"><div class="eyebrow">Queue depth</div><div class="metric cyan" id="queue">—</div><div class="note">events awaiting execution</div></div><div class="card"><div class="eyebrow">Processed</div><div class="metric" id="processed">—</div><div class="note">chained ledger events</div></div><div class="card"><div class="eyebrow">PayPal bridge</div><div class="metric warn" id="paypal">—</div><div class="note">metering bridge state</div></div></section>
+    <section class="main"><div class="card"><h2>Mesh telemetry <span id="refresh">refreshing</span></h2><div class="status"><span>Ledger integrity</span><strong class="good" id="ledger">Verifying…</strong></div><div class="bar"><i id="bar"></i></div><div id="events"><div class="note">Loading event stream…</div></div></div><div class="card"><h2>Provision workflow</h2><form class="form" id="workflowForm"><input id="tenant" minlength="2" placeholder="Tenant identifier" required><input id="workflow" minlength="3" placeholder="Workflow type (e.g. invoice.reconcile)" required><select id="priority"><option>standard</option><option>high</option><option>critical</option></select><button class="btn" type="submit">Provision guarded workflow</button></form><p class="note">Requests enter the compliance gate and cryptographic event chain. Restricted-data workloads require an explicit compliance approval marker from your integration.</p><div class="status"><span>Supabase ledger</span><strong id="supabase">—</strong></div><div class="status"><span>Runtime uptime</span><strong id="uptime">—</strong></div></div></section>
+    <footer class="footer"><span>APEXSOVEREIGN.AI · ZERO-TRUST EXECUTION FABRIC</span><span>Telemetry is operational metadata only. No payment is captured by this panel.</span></footer>
+  </div><div class="toast" id="toast"></div>
+  <script>
+    const $=id=>document.getElementById(id); const toast=m=>{const t=$("toast");t.textContent=m;t.style.display="block";setTimeout(()=>t.style.display="none",4200)};
+    const ago=s=>{if(!s)return "—";const d=(Date.now()-new Date(s).getTime())/1000;return d<60?`${Math.max(1,Math.round(d))}s ago`:new Date(s).toLocaleTimeString()};
+    async function refresh(){try{const [s,e]=await Promise.all([fetch("/v21/mesh/status",{cache:"no-store"}),fetch("/v21/telemetry/events",{cache:"no-store"})]);if(!s.ok||!e.ok)throw Error("telemetry unavailable");const a=await s.json(),b=await e.json();$("supervisor").textContent=a.supervisor.running?"RUNNING":"PAUSED";$("queue").textContent=a.queue_depth;$("processed").textContent=a.processed_events;$("paypal").textContent=a.paypal.usage_bridge_enabled?"ENABLED":(a.paypal.credentials_configured?"READY":"STANDBY");$("ledger").textContent=a.ledger.supabase_configured?"CHAINED · "+a.ledger.chain_head.slice(0,12):"LOCAL CHAIN · "+a.ledger.chain_head.slice(0,12);$("supabase").textContent=a.ledger.supabase_configured?"CONNECTED":"CONFIGURE CREDENTIALS";$("uptime").textContent=Math.round(a.supervisor.uptime_seconds)+"s";$("bar").style.width=Math.min(100,30+a.processed_events%70)+"%";$("events").innerHTML=b.events.length?b.events.map(x=>`<div class="event"><i class="dot"></i><div><b>${x.event_type}</b><p>${x.tenant_id} · ${x.state||"queued"} · ${x.event_hash.slice(0,14)}…</p></div><time>${ago(x.occurred_at)}</time></div>`).join(""):"<div class='note'>No events yet. Provision a workflow to start the mesh.</div>";$("refresh").textContent="updated "+new Date().toLocaleTimeString()}catch(err){$("liveLabel").textContent="TELEMETRY DEGRADED";toast("Telemetry is temporarily unavailable; the service is still reachable.")}}
+    $("workflowForm").addEventListener("submit",async ev=>{ev.preventDefault();const body={tenant_id:$("tenant").value,workflow_type:$("workflow").value,priority:$("priority").value,controls:{}};try{const r=await fetch("/v21/workflows/provision",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw Error(d.detail||"Provisioning failed");toast(d.status==="blocked"?"Workflow blocked by compliance gate":"Workflow accepted · "+d.workflow_id);ev.target.reset();refresh()}catch(e){toast(e.message)}});refresh();setInterval(refresh,8000);
+  </script>
+</body>
 </html>

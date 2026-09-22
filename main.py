@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
     await mesh.stop()
 
 
-app = FastAPI(title="ApexSovereign.ai v21", version="21.0", lifespan=lifespan)
+app = FastAPI(title="ApexSovereign.ai v22", version="22.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://apexsovereign.ai", "https://www.apexsovereign.ai"],
@@ -46,7 +46,7 @@ async def storefront() -> FileResponse:
 @app.get("/health", tags=["Runtime"])
 async def health() -> dict[str, Any]:
     snapshot = mesh.snapshot()
-    return {"status": "ok", "version": "21.0", "supervisor": snapshot["supervisor"], "ledger": snapshot["ledger"]}
+    return {"status": "ok", "version": "22.0", "supervisor": snapshot["supervisor"], "ledger": snapshot["ledger"], "billing_events": snapshot["billing_events"], "compliance": snapshot["compliance"]}
 
 
 @app.get("/v21/mesh/status", tags=["v21 Enterprise Mesh"])
@@ -73,3 +73,9 @@ async def provision_workflow(payload: WorkflowProvision) -> dict[str, Any]:
 @app.get("/v21/health", include_in_schema=False)
 async def v21_health() -> dict[str, Any]:
     return await health()
+
+
+@app.get("/v22/status", tags=["v22 Global Runtime"])
+async def v22_status() -> dict[str, Any]:
+    snapshot = mesh.snapshot()
+    return {"version": "22.0", "routing": "async-primary-edge", "readiness": "operational", "compliance": snapshot["compliance"], "billing_events": snapshot["billing_events"], "mesh": snapshot}

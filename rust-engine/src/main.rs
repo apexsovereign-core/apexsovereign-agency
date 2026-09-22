@@ -6,8 +6,8 @@ use axum::{
 };
 use futures_util::StreamExt;
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
-use std::{convert::Infallible, net::SocketAddr, sync::Arc};
+use serde::Deserialize;
+use std::{convert::Infallible, sync::Arc};
 use tokio_stream::wrappers::ReceiverStream;
 
 #[derive(Clone)]
@@ -23,7 +23,7 @@ struct ChatRequest {
 
 #[tokio::main]
 async fn main() {
-    // Load local .env file securely
+    // Load environment variables from local .env
     dotenvy::dotenv().ok();
     let api_key = std::env::var("OPENAI_API_KEY")
         .expect("OPENAI_API_KEY must be set in your local .env file");
@@ -33,16 +33,14 @@ async fn main() {
         api_key,
     });
 
-    // Build Axum router and define your streaming endpoint
     // Build your Axum router and add the route
     let app = Router::new()
-        .route("/api/llm-stream", post(stream_llm_task_handler))
+        .route("/api/llm-stream", post(stream_llm_handler))
         .with_state(state);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
-    println!("🚀 Apex Sovereign Rust Engine running on http://{}", addr);
-
-    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+    // Run the server
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:8080").await.unwrap();
+    println!("🚀 Apex Sovereign Rust Engine running on http://127.0.0.1:8080");
     axum::serve(listener, app).await.unwrap();
 }
 
@@ -56,7 +54,6 @@ async fn stream_llm_handler(
     let (tx, rx) = tokio::sync::mpsc::channel(100);
 
     tokio::spawn(async move {
-        // Construct the OpenAI API request body
         let body = serde_json::json!({
             "model": "gpt-4o-mini",
             "messages": [{"role": "user", "content": payload.prompt}],
@@ -77,7 +74,6 @@ async fn stream_llm_handler(
                     match chunk_result {
                         Ok(bytes) => {
                             if let Ok(text) = String::from_utf8(bytes.to_vec()) {
-                                // Forward raw SSE data chunks from OpenAI to the client
                                 for line in text.lines() {
                                     if line.starts_with("data: ") {
                                         let data = &line[6..];

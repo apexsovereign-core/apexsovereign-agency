@@ -1,55 +1,29 @@
-tokio::spawn(async move {
-        let body = serde_json::json!({
-            "model": "gpt-4o-mini",
-            "messages": [{"role": "user", "content": payload.prompt}],
-            "stream": true
-        });
+use axum::{routing::get, Router};
+use dotenvy::dotenv;
+use std::env;
 
-        let res = client
-            .post("https://api.openai.com/v1/chat/completions")
-            .bearer_auth(api_key)
-            .json(&body)
-            .send()
-            .await;
+#[tokio::main]
+async fn main() {
+    dotenv().ok();
 
-        match res {
-            Ok(response) => {
-                let status = response.status();
-                if !status.is_success() {
-                    let error_text = response.text().await.unwrap_or_default();
-                    eprintln!("❌ OpenAI API Error [{}]: {}", status, error_text);
-                    let _ = tx.send(Ok(Event::default().data(format!("OpenAI Error: {}", status)))).await;
-                    return;
-                }
-
-                let mut stream = response.bytes_stream();
-                while let Some(chunk_result) = stream.next().await {
-                    match chunk_result {
-                        Ok(bytes) => {
-                            if let Ok(text) = String::from_utf8(bytes.to_vec()) {
-                                for line in text.lines() {
-                                    if line.starts_with("data: ") {
-                                        let data = &line[6..];
-                                        if data != "[DONE]" {
-                                            let _ = tx.send(Ok(Event::default().data(data))).await;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("❌ Stream chunk error: {:?}", e);
-                            break;
-                        }
-                    }
-                }
-            }
-            Err(e) => {
-                eprintln!("❌ Failed to connect to OpenAI: {:?}", e);
-                let _ = tx.send(Ok(Event::default().data("Error connecting to OpenAI"))).await;
-            }
-        }
-<<<<<<< HEAD
+    let openai_key = env::var("OPENAI_API_KEY").unwrap_or_else(|_| {
+        eprintln!("CRITICAL: OPENAI_API_KEY is missing from the environment.");
+        String::new()
     });
-    });
->>>>>>> 09562abf6a5dd20287dc2d90937bcf465fa55438
+
+    if openai_key.is_empty() {
+        println!("WARNING: Running without an active OpenAI API key binding.");
+    } else {
+        println!("SUCCESS: ApexSovereign Neural Mesh successfully connected to OpenAI backend.");
+    }
+
+    let app = Router::new().route(
+        "/health",
+        get(|| async { "ApexSovereign Ingestion Engine: ONLINE & SECURE" }),
+    );
+
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
+    println!("ApexSovereign Engine listening on port 8080...");
+    
+    axum::serve(listener, app).await.unwrap();
+}

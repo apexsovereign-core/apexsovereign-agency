@@ -25,7 +25,7 @@ async fn main() {
 }
 
 async fn index_handler() -> Html<&'static str> {
-    Html(r#"
+    Html(r###"
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -207,5 +207,5 @@ async fn index_handler() -> Html<&'static str> {
             </footer>
         </body>
         </html>
-    "#)
+    "###)
 }

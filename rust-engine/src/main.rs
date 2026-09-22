@@ -49,4 +49,8 @@ tokio::spawn(async move {
                 let _ = tx.send(Ok(Event::default().data("Error connecting to OpenAI"))).await;
             }
         }
+<<<<<<< HEAD
     });
+=======
+    });
+>>>>>>> 09562abf6a5dd20287dc2d90937bcf465fa55438

@@ -1,5 +1,12 @@
+<<<<<<< HEAD
 [workspace]
 members = [
     "rust-engine"
 ]
+=======
+[workspace]
+members = [
+    "rust-engine"
+]
+>>>>>>> 09562abf6a5dd20287dc2d90937bcf465fa55438
 resolver = "2"

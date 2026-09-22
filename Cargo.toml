@@ -2,4 +2,8 @@
 members = [
     "rust-engine"
 ]
+<<<<<<< HEAD
 resolver = "2"
+=======
+resolver = "2"
+>>>>>>> 4a9dc90 (feat: deploy pristine error-free rust workspace and engine)

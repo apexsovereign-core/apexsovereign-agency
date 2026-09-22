@@ -165,10 +165,10 @@ class V21Mesh:
         record = {
             "tenant_id": item["tenant_id"],
             "event_type": item["event_type"],
-            "quantity": item["quantity"],
-            "metadata": {**item["metadata"], "v21_event_id": item["event_id"], "source": item["source"], "occurred_at": item["occurred_at"], "previous_hash": item["previous_hash"], "event_hash": item["event_hash"]},
+            "severity": "INFO",
+            "telemetry": {**item["metadata"], "quantity": item["quantity"], "v21_event_id": item["event_id"], "source": item["source"], "occurred_at": item["occurred_at"], "previous_hash": item["previous_hash"], "event_hash": item["event_hash"]},
         }
-        table = os.getenv("SUPABASE_V21_LEDGER_TABLE", "apex_transactions")
+        table = os.getenv("SUPABASE_V21_LEDGER_TABLE", "system_logs")
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.post(
                 f"{base}/rest/v1/{table}",

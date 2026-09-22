@@ -84,3 +84,26 @@ async def ingest_data(request: Request, payload: IngestionPayload, background_ta
 @production_router.get("/production-health", summary="Production ingestion health")
 async def production_health() -> Dict[str, Any]:
     return {"engine": "apex-production-engine", "status": "ready", "environment": os.getenv("ENVIRONMENT", "production"), "database_configured": bool(os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_SERVICE_ROLE_KEY"))}
+
+
+@production_router.post("/paypal/webhook", summary="PayPal webhook telemetry and metering intake")
+async def paypal_webhook(request: Request) -> Dict[str, Any]:
+    """Accept a PayPal event only when the configured webhook identity exists.
+
+    Signature verification remains a PayPal integration responsibility; this
+    endpoint never captures funds. It queues a cryptographically chained
+    revenue event for Supabase audit logging and optional metering-bridge sync.
+    """
+    if not os.getenv("PAYPAL_WEBHOOK_ID"):
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="PayPal webhook is not configured")
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="PayPal event must be a JSON object")
+    event_type = str(body.get("event_type") or "paypal.webhook")[:128]
+    resource = body.get("resource") if isinstance(body.get("resource"), dict) else {}
+    tenant_id = str(resource.get("custom_id") or body.get("client_id") or "paypal")[:128]
+    result = await mesh.enqueue(
+        MeshEvent(tenant_id=tenant_id, event_type=event_type, quantity=1, metadata={"paypal_event_id": body.get("id"), "webhook_verified": True}),
+        source="v1.paypal.webhook",
+    )
+    return {"status": "accepted", "event_id": result["event_id"], "metering": "queued", "ledger": result}

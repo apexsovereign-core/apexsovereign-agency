@@ -21,6 +21,7 @@ from typing import Any, Deque, Dict, Optional
 
 import httpx
 from pydantic import BaseModel, Field
+from v22_features import compliance_check, compliance_snapshot
 
 logger = logging.getLogger("Apex.V21Mesh")
 
@@ -60,6 +61,7 @@ class V21Mesh:
         self.processed = 0
         self.failed = 0
         self.rerouted = 0
+        self.billing_events = 0
         self.last_error: Optional[str] = None
         self.last_event_at: Optional[str] = None
         self._paypal_token: Optional[str] = None
@@ -136,15 +138,17 @@ class V21Mesh:
                 await asyncio.sleep(0.5)
 
     async def _process(self, item: Dict[str, Any]) -> None:
-        # Compliance gate: never forward a restricted event without an explicit approval marker.
         metadata = item.get("metadata") or {}
-        if metadata.get("restricted_data") and metadata.get("compliance_approved") is not True:
+        allowed, reason = compliance_check(metadata)
+        if not allowed:
             self.failed += 1
-            self.last_error = "restricted_data_requires_compliance_approval"
+            self.last_error = reason
             await self._mark(item["event_id"], "blocked")
             return
         await self._persist_supabase(item)
         await self._sync_paypal_usage(item)
+        if item["event_type"].startswith("paypal.") or item["source"] == "v1.ingest":
+            self.billing_events += 1
         self.processed += 1
         await self._mark(item["event_id"], "processed")
 
@@ -219,7 +223,7 @@ class V21Mesh:
 
     def snapshot(self) -> Dict[str, Any]:
         return {
-            "version": "21.0",
+            "version": "22.0",
             "queue_depth": len(self.queue),
             "processed_events": self.processed,
             "failed_events": self.failed,
@@ -228,6 +232,8 @@ class V21Mesh:
             "last_event_at": self.last_event_at,
             "ledger": {"supabase_configured": self.supabase_configured, "chain_head": self._last_hash},
             "paypal": {"credentials_configured": self.paypal_configured, "usage_bridge_enabled": self.paypal_usage_enabled, "webhook_id_configured": bool(os.getenv("PAYPAL_WEBHOOK_ID"))},
+            "billing_events": self.billing_events,
+            "compliance": compliance_snapshot(),
             "supervisor": {"running": bool(self._worker and not self._worker.done()), "uptime_seconds": round(time.time() - self.started_at, 2)},
             "recent_events": list(self.events)[:20],
         }

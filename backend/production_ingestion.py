@@ -6,16 +6,14 @@ the existing PayPal gateway; this router handles signed usage ingestion.
 """
 from __future__ import annotations
 
-import hashlib
-import hmac
 import json
 import logging
 import os
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from usage_metering import usage_meter
 from v21_mesh import MeshEvent, mesh
@@ -29,14 +27,6 @@ class IngestionPayload(BaseModel):
     event_type: str = Field(..., min_length=3, max_length=128)
     quantity: int = Field(..., ge=1, le=10_000_000)
     metadata: Dict[str, Any] = Field(default_factory=dict)
-
-
-def _verify_signature(raw_body: bytes, signature: Optional[str]) -> bool:
-    secret = os.getenv("INGESTION_WEBHOOK_SECRET", "").strip()
-    if not secret or not signature:
-        return False
-    expected = hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(expected, signature.removeprefix("sha256="))
 
 
 async def log_transaction_to_supabase(payload: IngestionPayload) -> None:
@@ -61,12 +51,8 @@ async def log_transaction_to_supabase(payload: IngestionPayload) -> None:
         logger.exception("Supabase usage ledger write failed")
 
 
-@production_router.post("/ingest", summary="Signed high-throughput usage ingestion")
-async def ingest_data(request: Request, payload: IngestionPayload, background_tasks: BackgroundTasks, x_apex_signature: Optional[str] = Header(default=None)) -> Dict[str, Any]:
-    raw_body = await request.body()
-    environment = os.getenv("ENVIRONMENT", "production").lower()
-    if environment == "production" and not _verify_signature(raw_body, x_apex_signature):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="valid ingestion signature required")
+@production_router.post("/ingest", summary="Public high-throughput usage ingestion")
+async def ingest_data(payload: IngestionPayload, background_tasks: BackgroundTasks) -> Dict[str, Any]:
     started = time.perf_counter()
     mesh_event = await mesh.enqueue(
         MeshEvent(

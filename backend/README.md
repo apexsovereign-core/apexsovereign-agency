@@ -57,7 +57,7 @@ Execute `backend/app/db/schema.sql` in the Supabase SQL Editor.
 
 ### 4. Run Server
 ```bash
-uvicorn backend.app.main:app --host 0.0.0.0 --port 3000 --reload
+python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 3000 --reload
 ```
 
 Interactive OpenAPI docs will be available at: `http://localhost:3000/docs`

@@ -1,17 +1,19 @@
 services:
   - type: web
     name: apex-ingestion-engine
-    runtime: python
+    env: python
     region: oregon
     plan: starter
     rootDir: .
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python3 -m uvicorn main:app --host 0.0.0.0 --port $PORT"
     healthCheckPath: /health
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.9
+        value: 3.11.0
+      - key: PATH
+        value: "/opt/render/project/.venv/bin:/opt/render/project/src/.venv/bin:/usr/local/bin:/usr/bin:/bin"
       - key: DATABASE_URL
         sync: false
       - key: PAYPAL_CLIENT_ID

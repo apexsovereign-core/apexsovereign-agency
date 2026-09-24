@@ -22,6 +22,7 @@ _START_TIME = time.time()
 
 
 @router.get("/health", summary="Liveness & Readiness Health Probe")
+@router.get("/v1/platform/health-matrix", summary="Platform Health Matrix Probe")
 async def health_check() -> JSONResponse:
     """
     Production health check probe for Render orchestration and container health checks.

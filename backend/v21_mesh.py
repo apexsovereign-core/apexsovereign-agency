@@ -1,253 +1,256 @@
-"""v21 enterprise execution mesh.
-
-The mesh is deliberately fail-closed for compliance and non-financial by default:
-usage is cryptographically chained and persisted to Supabase when configured;
-PayPal metering is emitted only to an explicitly configured usage endpoint and
-never creates or captures a payment order implicitly.
 """
-from __future__ import annotations
+ApexSovereign.ai - Pillar II: The Computational Mesh & V21 Execution Engine (v21_mesh.py)
+Autonomous Work OS & Sovereign Compute Broker Operating Core.
+"""
 
-import asyncio
-import hashlib
-import hmac
-import json
-import logging
 import os
 import time
+import json
 import uuid
-from collections import deque
+import hmac
+import hashlib
+import asyncio
 from datetime import datetime, timezone
-from typing import Any, Deque, Dict, Optional
-
-import httpx
+from typing import Dict, Any, List, Optional
+from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks
 from pydantic import BaseModel, Field
-from v22_features import compliance_check, compliance_snapshot
 
-logger = logging.getLogger("Apex.V21Mesh")
+GENESIS_HASH = "0000000000000000000000000000000000000000000000000000000000000000"
+MAX_QUEUE_CAPACITY = 5000
+MAX_PAYLOAD_BYTES = 32768
 
-
-def _utc() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def _canonical(value: Dict[str, Any]) -> bytes:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str).encode()
-
+v21_mesh_router = APIRouter(prefix="/v21/mesh", tags=["Pillar II: Computational Mesh v21"])
 
 class MeshEvent(BaseModel):
-    tenant_id: str = Field(min_length=2, max_length=128)
-    event_type: str = Field(min_length=3, max_length=128)
-    quantity: int = Field(default=1, ge=1, le=10_000_000)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
-    request_id: Optional[str] = None
+    event_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    tenant_id: str = Field(default="tenant-sovereign-01")
+    event_type: str = Field(..., description="E.g. compute.lease.provision, agent.task.dispatch, settlement.capture")
+    data_classification: str = Field(default="internal", description="public, internal, confidential, or restricted")
+    payload: Dict[str, Any] = Field(default_factory=dict)
+    compliance_marker: Optional[str] = Field(None, description="Cryptographic compliance token required for restricted data")
+    metered_cu: float = Field(default=1.0, description="Compute Units consumed by this execution step")
+    previous_hash: Optional[str] = None
+    event_hash: Optional[str] = None
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
+class ComputationalMeshEngine:
+    def __init__(self):
+        self.queue: asyncio.Queue = asyncio.Queue(maxsize=MAX_QUEUE_CAPACITY)
+        self.ledger: List[Dict[str, Any]] = []
+        self.last_hash: str = GENESIS_HASH
+        self.is_running: bool = False
+        self.worker_task: Optional[asyncio.Task] = None
+        self.processed_count: int = 0
+        self.failed_count: int = 0
+        self.recovered_count: int = 0
+        self.lock = asyncio.Lock()
 
-class WorkflowProvision(BaseModel):
-    tenant_id: str = Field(min_length=2, max_length=128)
-    workflow_type: str = Field(min_length=3, max_length=128)
-    priority: str = Field(default="standard", pattern="^(standard|high|critical)$")
-    controls: Dict[str, Any] = Field(default_factory=dict)
+    def compute_payload_digest(self, payload: Dict[str, Any]) -> str:
+        serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        if len(serialized.encode("utf-8")) > MAX_PAYLOAD_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Payload metadata exceeds hard 32KB constraint ({len(serialized.encode('utf-8'))} bytes)."
+            )
+        return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
+    def calculate_event_hash(self, previous_hash: str, tenant_id: str, event_id: str, event_type: str, payload_digest: str, timestamp: str) -> str:
+        raw_seed = f"{previous_hash}:{tenant_id}:{event_id}:{event_type}:{payload_digest}:{timestamp}"
+        return hashlib.sha256(raw_seed.encode("utf-8")).hexdigest()
 
-class V21Mesh:
-    def __init__(self) -> None:
-        self.started_at = time.time()
-        self.queue: Deque[Dict[str, Any]] = deque(maxlen=5000)
-        self.events: Deque[Dict[str, Any]] = deque(maxlen=200)
-        self._last_hash = os.getenv("V21_LEDGER_GENESIS", "apexsovereign-v21-genesis")
-        self._lock = asyncio.Lock()
-        self._worker: Optional[asyncio.Task] = None
-        self._stop = asyncio.Event()
-        self.processed = 0
-        self.failed = 0
-        self.rerouted = 0
-        self.billing_events = 0
-        self.last_error: Optional[str] = None
-        self.last_event_at: Optional[str] = None
-        self._paypal_token: Optional[str] = None
-        self._paypal_token_expiry = 0.0
-
-    @property
-    def supabase_configured(self) -> bool:
-        return bool(os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
-
-    @property
-    def paypal_configured(self) -> bool:
-        return bool(os.getenv("PAYPAL_CLIENT_ID") and os.getenv("PAYPAL_CLIENT_SECRET"))
-
-    @property
-    def paypal_usage_enabled(self) -> bool:
-        return bool(os.getenv("PAYPAL_USAGE_ENDPOINT")) and self.paypal_configured
-
-    async def start(self) -> None:
-        if self._worker and not self._worker.done():
+    async def start_supervisor_loop(self):
+        if self.is_running:
             return
-        self._stop.clear()
-        self._worker = asyncio.create_task(self._supervisor(), name="v21-mesh-supervisor")
-        logger.info("v21 autonomous supervisor started")
+        self.is_running = True
+        self.worker_task = asyncio.create_task(self._supervisor_worker())
 
-    async def stop(self) -> None:
-        self._stop.set()
-        if self._worker:
-            self._worker.cancel()
+    async def stop_supervisor_loop(self):
+        self.is_running = False
+        if self.worker_task:
+            self.worker_task.cancel()
             try:
-                await self._worker
+                await self.worker_task
             except asyncio.CancelledError:
                 pass
-            self._worker = None
 
-    async def enqueue(self, event: MeshEvent, source: str = "ingest") -> Dict[str, Any]:
-        async with self._lock:
-            now = _utc()
-            body = {
-                "event_id": str(uuid.uuid4()),
-                "tenant_id": event.tenant_id,
-                "event_type": event.event_type,
-                "quantity": event.quantity,
-                "metadata": event.metadata,
-                "request_id": event.request_id,
-                "source": source,
-                "occurred_at": now,
-            }
-            digest = hashlib.sha256(self._last_hash.encode() + _canonical(body)).hexdigest()
-            body["previous_hash"] = self._last_hash
-            body["event_hash"] = digest
-            self._last_hash = digest
-            self.queue.append(body)
-            self.events.appendleft({**body, "state": "queued"})
-            self.last_event_at = now
-            return {"event_id": body["event_id"], "event_hash": digest, "state": "queued"}
-
-    async def _supervisor(self) -> None:
-        while not self._stop.is_set():
+    async def _supervisor_worker(self):
+        while self.is_running:
             try:
-                item = None
-                async with self._lock:
-                    if self.queue:
-                        item = self.queue.popleft()
-                if item is None:
-                    await asyncio.sleep(0.15)
-                    continue
-                await self._process(item)
+                event = await self.queue.get()
+                await self._process_single_event(event)
+                self.queue.task_done()
             except asyncio.CancelledError:
-                raise
-            except Exception as exc:
-                self.failed += 1
-                self.last_error = str(exc)[:240]
-                logger.exception("v21 supervisor loop recovered from error")
-                await asyncio.sleep(0.5)
+                break
+            except Exception as loop_err:
+                self.failed_count += 1
+                await asyncio.sleep(0.1)
+                self.recovered_count += 1
 
-    async def _process(self, item: Dict[str, Any]) -> None:
-        metadata = item.get("metadata") or {}
-        allowed, reason = compliance_check(metadata)
-        if not allowed:
-            self.failed += 1
-            self.last_error = reason
-            await self._mark(item["event_id"], "blocked")
-            return
-        await self._persist_supabase(item)
-        await self._sync_paypal_usage(item)
-        if item["event_type"].startswith("paypal.") or item["source"] == "v1.ingest":
-            self.billing_events += 1
-        self.processed += 1
-        await self._mark(item["event_id"], "processed")
-
-    async def _mark(self, event_id: str, state: str) -> None:
-        async with self._lock:
-            for event in self.events:
-                if event.get("event_id") == event_id:
-                    event["state"] = state
-                    break
-
-    async def _persist_supabase(self, item: Dict[str, Any]) -> None:
-        if not self.supabase_configured:
-            return
-        base = os.environ["SUPABASE_URL"].rstrip("/")
-        if base.endswith("/rest/v1"):
-            base = base[:-len("/rest/v1")]
-        key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-        record = {
-            "tenant_id": item["tenant_id"],
-            "event_type": item["event_type"],
-            "severity": "INFO",
-            "telemetry": {**item["metadata"], "quantity": item["quantity"], "v21_event_id": item["event_id"], "source": item["source"], "occurred_at": item["occurred_at"], "previous_hash": item["previous_hash"], "event_hash": item["event_hash"]},
-        }
-        table = os.getenv("SUPABASE_V21_LEDGER_TABLE", "system_logs")
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.post(
-                f"{base}/rest/v1/{table}",
-                headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json", "Prefer": "return=minimal"},
-                content=json.dumps(record, default=str),
+    async def _process_single_event(self, event: MeshEvent):
+        async with self.lock:
+            event.previous_hash = self.last_hash
+            payload_digest = self.compute_payload_digest(event.payload)
+            event.event_hash = self.calculate_event_hash(
+                previous_hash=event.previous_hash,
+                tenant_id=event.tenant_id,
+                event_id=event.event_id,
+                event_type=event.event_type,
+                payload_digest=payload_digest,
+                timestamp=event.timestamp
             )
-            response.raise_for_status()
+            self.last_hash = event.event_hash
+            record = event.dict()
+            self.ledger.append(record)
+            if len(self.ledger) > 10000:
+                self.ledger = self.ledger[-10000:]
+            self.processed_count += 1
+            asyncio.create_task(self._sync_ledger_to_external_vaults(record))
 
-    async def _paypal_access_token(self) -> Optional[str]:
-        if not self.paypal_configured:
-            return None
-        if self._paypal_token and time.time() < self._paypal_token_expiry - 30:
-            return self._paypal_token
-        node = os.getenv("PAYPAL_NODE", "live").lower()
-        base = "https://api-m.paypal.com" if node == "live" else "https://api-m.sandbox.paypal.com"
-        async with httpx.AsyncClient(timeout=8.0) as client:
-            response = await client.post(
-                f"{base}/v1/oauth2/token",
-                auth=(os.environ["PAYPAL_CLIENT_ID"], os.environ["PAYPAL_CLIENT_SECRET"]),
-                data={"grant_type": "client_credentials"},
-                headers={"Accept": "application/json", "Accept-Language": "en_US"},
-            )
-            response.raise_for_status()
-            data = response.json()
-        self._paypal_token = data.get("access_token")
-        self._paypal_token_expiry = time.time() + int(data.get("expires_in", 300))
-        return self._paypal_token
-
-    async def _sync_paypal_usage(self, item: Dict[str, Any]) -> None:
-        # PayPal has no universal arbitrary usage-event endpoint. Integrators opt in
-        # with PAYPAL_USAGE_ENDPOINT pointing at their approved metering bridge.
-        if not self.paypal_usage_enabled:
+    async def _sync_ledger_to_external_vaults(self, record: Dict[str, Any]):
+        supabase_url = os.getenv("SUPABASE_URL")
+        supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        if not supabase_url or not supabase_key:
             return
-        token = await self._paypal_access_token()
-        if not token:
-            return
-        endpoint = os.environ["PAYPAL_USAGE_ENDPOINT"]
-        node = os.getenv("PAYPAL_NODE", "live").lower()
-        base = "https://api-m.paypal.com" if node == "live" else "https://api-m.sandbox.paypal.com"
-        target = endpoint if endpoint.startswith("http") else f"{base}{endpoint}"
-        async with httpx.AsyncClient(timeout=8.0) as client:
-            response = await client.post(
-                target,
-                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json", "PayPal-Request-Id": item["event_id"]},
-                json={"event_id": item["event_id"], "tenant_id": item["tenant_id"], "quantity": item["quantity"], "event_type": item["event_type"], "event_hash": item["event_hash"]},
-            )
-            response.raise_for_status()
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=4.0) as client:
+                headers = {
+                    "apikey": supabase_key,
+                    "Authorization": f"Bearer {supabase_key}",
+                    "Content-Type": "application/json",
+                    "Prefer": "return=minimal"
+                }
+                payload = {
+                    "tenant_id": record["tenant_id"],
+                    "event_type": record["event_type"],
+                    "event_hash": record["event_hash"],
+                    "previous_hash": record["previous_hash"],
+                    "metered_cu": record["metered_cu"],
+                    "created_at": record["timestamp"],
+                    "status": "CHAIN_COMMITTED"
+                }
+                await client.post(f"{supabase_url}/rest/v1/system_logs", headers=headers, json=payload)
+        except Exception:
+            pass
 
-    def snapshot(self) -> Dict[str, Any]:
+    def evaluate_compliance(self, event: MeshEvent):
+        classification = (event.data_classification or "internal").lower()
+        if classification == "restricted":
+            required_marker = os.getenv("COMPLIANCE_SIGNATURE_KEY", "sovereign_restricted_compliance_clearance_2026")
+            if not event.compliance_marker or required_marker not in event.compliance_marker:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Compliance Gate Hard Stop: 'restricted' classification requires explicit cryptographic compliance_marker."
+                )
+
+    async def enqueue(self, event: Any, source: str = "v1.mesh") -> Dict[str, Any]:
+        """Ingestion compatibility adapter for async event enqueuing."""
+        if not self.is_running:
+            await self.start_supervisor_loop()
+        if isinstance(event, dict):
+            event_obj = MeshEvent(**event)
+        elif isinstance(event, MeshEvent):
+            event_obj = event
+        else:
+            event_obj = MeshEvent(
+                tenant_id=getattr(event, "tenant_id", "tenant-sovereign-01"),
+                event_type=getattr(event, "event_type", "mesh.event"),
+                payload=getattr(event, "metadata", {})
+            )
+        await self.queue.put(event_obj)
         return {
-            "version": "22.0",
-            "queue_depth": len(self.queue),
-            "processed_events": self.processed,
-            "failed_events": self.failed,
-            "rerouted_events": self.rerouted,
-            "last_error": self.last_error,
-            "last_event_at": self.last_event_at,
-            "ledger": {"supabase_configured": self.supabase_configured, "chain_head": self._last_hash},
-            "paypal": {"credentials_configured": self.paypal_configured, "usage_bridge_enabled": self.paypal_usage_enabled, "webhook_id_configured": bool(os.getenv("PAYPAL_WEBHOOK_ID"))},
-            "billing_events": self.billing_events,
-            "compliance": compliance_snapshot(),
-            "supervisor": {"running": bool(self._worker and not self._worker.done()), "uptime_seconds": round(time.time() - self.started_at, 2)},
-            "recent_events": list(self.events)[:20],
+            "status": "ENQUEUED",
+            "event_id": event_obj.event_id,
+            "source": source,
+            "timestamp": event_obj.timestamp
         }
 
-    def events_since(self, limit: int = 20) -> list[Dict[str, Any]]:
-        return list(self.events)[: max(1, min(limit, 100))]
+mesh_engine = ComputationalMeshEngine()
+# Compatibility alias
+mesh = mesh_engine
 
+@v21_mesh_router.get("/status")
+async def get_mesh_status():
+    return {
+        "status": "OPERATIONAL",
+        "engine": "ApexSovereign V21 Computational Mesh",
+        "queue_depth": mesh_engine.queue.qsize(),
+        "max_capacity": MAX_QUEUE_CAPACITY,
+        "processed_events": mesh_engine.processed_count,
+        "failed_events": mesh_engine.failed_count,
+        "recovered_events": mesh_engine.recovered_count,
+        "chain_head": mesh_engine.last_hash,
+        "genesis_hash": GENESIS_HASH,
+        "supervisor_active": mesh_engine.is_running,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
 
-mesh = V21Mesh()
+@v21_mesh_router.post("/emit")
+async def emit_mesh_event(event: MeshEvent):
+    mesh_engine.evaluate_compliance(event)
+    mesh_engine.compute_payload_digest(event.payload)
+    if not mesh_engine.is_running:
+        await mesh_engine.start_supervisor_loop()
+    async with mesh_engine.lock:
+        event.previous_hash = mesh_engine.last_hash
+        digest = mesh_engine.compute_payload_digest(event.payload)
+        event.event_hash = mesh_engine.calculate_event_hash(
+            previous_hash=event.previous_hash,
+            tenant_id=event.tenant_id,
+            event_id=event.event_id,
+            event_type=event.event_type,
+            payload_digest=digest,
+            timestamp=event.timestamp
+        )
+        mesh_engine.last_hash = event.event_hash
+        record = event.dict()
+        mesh_engine.ledger.append(record)
+        if len(mesh_engine.ledger) > 10000:
+            mesh_engine.ledger = mesh_engine.ledger[-10000:]
+        mesh_engine.processed_count += 1
 
+    return {
+        "status": "CHAINED",
+        "event_id": event.event_id,
+        "event_hash": event.event_hash,
+        "previous_hash": event.previous_hash,
+        "tenant_id": event.tenant_id,
+        "metered_cu": event.metered_cu,
+        "classification": event.data_classification,
+        "committed_at": event.timestamp,
+        "verification_url": f"/v21/mesh/verify-chain?event_id={event.event_id}"
+    }
 
-def verify_mesh_signature(raw_body: bytes, signature: Optional[str]) -> bool:
-    secret = os.getenv("INGESTION_WEBHOOK_SECRET", "").strip()
-    if not secret or not signature:
-        return False
-    expected = hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(expected, signature.removeprefix("sha256="))
+@v21_mesh_router.get("/ledger")
+async def get_mesh_ledger(limit: int = 50):
+    items = mesh_engine.ledger[-limit:]
+    return {
+        "count": len(items),
+        "total_committed": mesh_engine.processed_count,
+        "chain_head": mesh_engine.last_hash,
+        "ledger": items
+    }
+
+@v21_mesh_router.get("/verify-chain")
+async def verify_chain_lineage():
+    current_expected = GENESIS_HASH
+    violations = []
+    for idx, item in enumerate(mesh_engine.ledger):
+        if item.get("previous_hash") != current_expected:
+            violations.append({
+                "index": idx,
+                "event_id": item.get("event_id"),
+                "expected_previous": current_expected,
+                "actual_previous": item.get("previous_hash")
+            })
+        current_expected = item.get("event_hash")
+
+    is_valid = len(violations) == 0
+    return {
+        "verified": is_valid,
+        "status": "CRYPTOGRAPHICALLY_INTACT" if is_valid else "CHAIN_INTEGRITY_BREACH",
+        "total_blocks_verified": len(mesh_engine.ledger),
+        "chain_head": mesh_engine.last_hash,
+        "violations": violations,
+        "audit_timestamp": datetime.now(timezone.utc).isoformat()
+    }

@@ -41,6 +41,7 @@ from backend.app.api.v1.leads import router as leads_router
 from backend.app.api.v1.neural_chat import router as neural_router
 from backend.app.api.v1.telemetry_ws import router as telemetry_ws_router
 from backend.app.api.v1.concierge import router as concierge_router
+from backend.app.routers.telemetry import router as telemetry_router
 from backend.app.core.exceptions import (
     ApexSovereignBaseException,
     IdempotencyConflictError,
@@ -176,6 +177,7 @@ app.include_router(leads_router)
 app.include_router(neural_router)
 app.include_router(telemetry_ws_router)
 app.include_router(concierge_router)
+app.include_router(telemetry_router)
 
 
 @app.get("/", summary="Root API Index")

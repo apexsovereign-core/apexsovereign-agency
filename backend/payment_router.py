@@ -435,6 +435,7 @@ def verify_paypal_payment(req: PaymentVerifyRequest, db: Session = Depends(get_d
 
 
 @payment_router.post("/webhook")
+@payment_router.post("/webhooks/paypal")
 async def paypal_webhook_listener(request: Request, db: Session = Depends(get_db)):
     """
     Secure PayPal Webhook listener.

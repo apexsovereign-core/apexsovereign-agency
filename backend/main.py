@@ -370,6 +370,15 @@ app.include_router(payment_router)
 app.include_router(agent_router)
 app.include_router(production_router)
 
+# Computational Mesh & V21 Execution Engine Routers (Serving /api/v21/* and /v21/*)
+try:
+    from v21_mesh import v21_mesh_router
+    app.include_router(v21_mesh_router, prefix="/api")
+    app.include_router(v21_mesh_router)
+    print("[ApexSovereign] V21 Computational Mesh router mounted at /api/v21 and /v21 successfully.")
+except Exception as v21_err:
+    print(f"[ApexSovereign] Note: v21_mesh_router mounting exception: {v21_err}")
+
 # Enterprise Wire / ACH Invoicing Router
 try:
     from invoicing import invoicing_router

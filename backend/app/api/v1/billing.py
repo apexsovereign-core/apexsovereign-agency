@@ -358,6 +358,12 @@ async def verify_paypal_payment(
     summary="PayPal Cryptographic Webhook Receiver",
     description="Ingests PayPal webhooks, cryptographically validates the transmission signature against PAYPAL_WEBHOOK_ID, and commits idempotent ledger changes.",
 )
+@router.post(
+    "/webhooks/paypal",
+    response_model=WebhookProcessingResult,
+    summary="PayPal Cryptographic Webhook Receiver (Alias)",
+    description="Alias receiver endpoint for PayPal webhooks.",
+)
 async def handle_paypal_webhook(
     request: Request,
     conn: Connection = Depends(get_db_tx),

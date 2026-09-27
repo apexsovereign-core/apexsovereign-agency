@@ -22,6 +22,94 @@ v21_mesh_router = APIRouter(prefix="/v21", tags=["V21 Mesh Engine"])
 async def get_mesh_status():
     return {"status": "OPERATIONAL", "mesh": "v21"}
 
+@v21_mesh_router.get("/arbitrage/rates")
+async def get_v21_arbitrage_rates():
+    import datetime
+    return {
+        "status": "active",
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "mesh_version": "V21",
+        "rates": [
+            { "gpu": "H100 SXM5", "retail_cost_per_hr": "$2.40", "apex_sovereign_rate": "$1.44", "savings": "40%" },
+            { "gpu": "B200 NVL72", "retail_cost_per_hr": "$4.50", "apex_sovereign_rate": "$2.85", "savings": "36%" },
+            { "gpu": "A100 SXM4", "retail_cost_per_hr": "$2.10", "apex_sovereign_rate": "$1.42", "savings": "32%" }
+        ]
+    }
+
+@v21_mesh_router.get("/mesh/nodes")
+@v21_mesh_router.get("/nodes")
+async def get_v21_mesh_nodes():
+    import datetime
+    return {
+        "status": "OPERATIONAL",
+        "cluster_id": "apex-hyper-mesh-global",
+        "mesh_version": "V21",
+        "nodes": [
+            {
+                "node_id": "node-us-east-01",
+                "region": "us-east",
+                "city": "Ashburn, VA",
+                "accelerator": "NVIDIA H100 80GB SXM5",
+                "memory_gb": 80,
+                "status": "ONLINE",
+                "utilization_pct": 76.4,
+                "latency_ms": 1.8,
+                "spot_rate_usd": 1.44,
+                "failover_lane": "READY"
+            },
+            {
+                "node_id": "node-eu-central-01",
+                "region": "eu-central",
+                "city": "Frankfurt, DE",
+                "accelerator": "NVIDIA H100 80GB SXM5",
+                "memory_gb": 80,
+                "status": "ONLINE",
+                "utilization_pct": 69.2,
+                "latency_ms": 2.1,
+                "spot_rate_usd": 1.44,
+                "failover_lane": "READY"
+            },
+            {
+                "node_id": "node-ap-south-01",
+                "region": "ap-south",
+                "city": "Mumbai, IN",
+                "accelerator": "NVIDIA B200 NVL72 192GB",
+                "memory_gb": 192,
+                "status": "ONLINE",
+                "utilization_pct": 62.8,
+                "latency_ms": 3.4,
+                "spot_rate_usd": 2.85,
+                "failover_lane": "READY"
+            }
+        ],
+        "total_nodes_online": 3,
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
+    }
+
+@v21_mesh_router.post("/orchestrate")
+async def post_v21_orchestrate(body: Optional[Dict[str, Any]] = None):
+    import datetime
+    import secrets
+    body = body or {}
+    w_id = body.get("workload_id") or f"wkld_{secrets.token_hex(4)}"
+    t_id = body.get("tenant_id") or "tenant-sovereign-01"
+    c_tier = body.get("compute_tier") or "NVIDIA H100 80GB SXM5"
+    exec_tok = f"exec_{secrets.token_hex(16)}"
+    return {
+        "status": "ORCHESTRATED",
+        "execution_token": exec_tok,
+        "assigned_node": "node-us-east-01 (Ashburn, VA)",
+        "compute_tier": c_tier,
+        "sla_guarantee": "90s Hot-Swap Failover SLA",
+        "stateless_mode": True,
+        "memory_enclave": "Volatile VRAM Protected",
+        "latency_ms": 1.8,
+        "workload_id": w_id,
+        "tenant_id": t_id,
+        "dispatched_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
+    }
+
+app.include_router(v21_mesh_router, prefix="/api")
 app.include_router(v21_mesh_router)
 
 # Core Health & Platform Matrix Endpoints

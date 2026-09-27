@@ -9,6 +9,7 @@ import os
 import json
 import time
 import uuid
+import hashlib
 import threading
 from typing import Dict, Any, Optional
 import requests
@@ -356,8 +357,40 @@ async def verify_paypal_order_endpoint(req: VerifyPayPalOrderRequest):
 
 
 # ---------------------------------------------------------------------------
-# Cryptographic Webhook Handler (/v3/engine/telemetry/billing/gateway)
+# Cryptographic Webhook Handler (/v3/engine/telemetry/billing/gateway & /api/webhooks/paypal)
 # ---------------------------------------------------------------------------
+def dispatch_n8n_coo_gateway(event: Dict[str, Any], tenant_id: str, units: float, order_id: str):
+    """
+    Dispatches settlement event asynchronously to the n8n apex-coo-gateway workflow
+    for automated orchestration, CRM tracking, and infrastructure provisioning.
+    """
+    coo_webhook_url = os.getenv("N8N_COO_GATEWAY_WEBHOOK_URL", os.getenv("COO_GATEWAY_WEBHOOK_URL", ""))
+    if not coo_webhook_url:
+        return
+    try:
+        t0 = time.time()
+        coo_payload = {
+            "source": "apexsovereign.paypal_gateway",
+            "workflow": "apex-coo-gateway",
+            "event_type": event.get("event_type"),
+            "tenant_id": tenant_id,
+            "order_id": order_id,
+            "compute_units_allocated": units,
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "raw_resource": event.get("resource", {})
+        }
+        headers = {
+            "Content-Type": "application/json",
+            "X-Apex-Signature": hashlib.sha256(f"{tenant_id}:{order_id}:{units}".encode("utf-8")).hexdigest()
+        }
+        res = requests.post(coo_webhook_url, json=coo_payload, headers=headers, timeout=5)
+        elapsed_ms = (time.time() - t0) * 1000
+        print(f"[COO-GATEWAY DISPATCH] Event sent to n8n ({coo_webhook_url}) in {elapsed_ms:.1f}ms - Status {res.status_code}")
+    except Exception as exc:
+        print(f"[COO-GATEWAY WARNING] n8n dispatch non-blocking warning: {exc}")
+
+
+@paypal_gateway_router.get("/api/webhooks/paypal", status_code=status.HTTP_200_OK)
 @paypal_gateway_router.get("/v3/engine/telemetry/billing/gateway", status_code=status.HTTP_200_OK)
 @paypal_gateway_router.get("/gateway", status_code=status.HTTP_200_OK)
 async def gateway_telemetry_health():
@@ -365,13 +398,15 @@ async def gateway_telemetry_health():
     return {
         "status": "OPERATIONAL",
         "gateway": "PayPal Webhook Cryptographic Telemetry Gateway",
-        "path": "/v3/engine/telemetry/billing/gateway",
+        "paths": ["/api/webhooks/paypal", "/v3/engine/telemetry/billing/gateway", "/billing/webhook"],
         "mode": PAYPAL_MODE,
+        "coo_gateway_configured": bool(os.getenv("N8N_COO_GATEWAY_WEBHOOK_URL") or os.getenv("COO_GATEWAY_WEBHOOK_URL")),
         "security": "Asymmetric RSA-SHA256 & Transmission Digest Verification",
         "timestamp": int(time.time()),
     }
 
 
+@paypal_gateway_router.post("/api/webhooks/paypal", status_code=status.HTTP_200_OK)
 @paypal_gateway_router.post("/v3/engine/telemetry/billing/gateway", status_code=status.HTTP_200_OK)
 @paypal_gateway_router.post("/gateway", status_code=status.HTTP_200_OK)
 async def secure_paypal_webhook_handler(
@@ -434,7 +469,16 @@ async def secure_paypal_webhook_handler(
         custom_id = resource.get("custom_id")
         tenant_id = custom_id or f"tenant-corp-{uuid.uuid4().hex[:8]}"
         company_name = f"Enterprise Corp ({tenant_id})"
-        initial_credits = 10000.0000
+        
+        # Calculate Compute Units to credit
+        amount_val = 100.0
+        try:
+            amount_dict = resource.get("amount", {})
+            if "value" in amount_dict:
+                amount_val = float(amount_dict["value"])
+        except Exception:
+            pass
+        initial_credits = amount_val * 100.0  # 1 USD = 100 Compute Units baseline
 
         background_tasks.add_task(
             provision_tenant_in_supabase,
@@ -442,6 +486,22 @@ async def secure_paypal_webhook_handler(
             company_name=company_name,
             subscription_id=subscription_id or f"sub-{uuid.uuid4().hex[:6]}",
             initial_credits=initial_credits,
+        )
+
+        background_tasks.add_task(
+            allocate_compute_units_supabase_rpc,
+            tenant_id=tenant_id,
+            paypal_order_id=subscription_id or f"ord_{uuid.uuid4().hex[:8]}",
+            units=initial_credits,
+            amount=amount_val,
+        )
+
+        background_tasks.add_task(
+            dispatch_n8n_coo_gateway,
+            event=event,
+            tenant_id=tenant_id,
+            units=initial_credits,
+            order_id=subscription_id or "unknown",
         )
 
     return {"status": "INGESTED_CRYPTOGRAPHICALLY_VERIFIED", "timestamp": int(time.time())}

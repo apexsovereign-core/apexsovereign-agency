@@ -22,15 +22,17 @@ services:
         sync: false
       - key: PAYPAL_CLIENT_SECRET
         sync: false
-      - key: PAYPAL_NODE
-        sync: false
+      - key: PAYPAL_MODE
+        value: live
       - key: PAYPAL_WEBHOOK_ID
         sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      - key: N8N_COO_GATEWAY_WEBHOOK_URL
+        sync: false
       - key: INGESTION_WEBHOOK_SECRET
         generateValue: true
       - key: ALLOWED_ORIGINS
-        value: "https://apexsovereign.ai,https://*.vercel.app"
+        value: "https://apexsovereign.ai,https://www.apexsovereign.ai,https://*.vercel.app"

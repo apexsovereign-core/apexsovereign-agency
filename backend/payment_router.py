@@ -481,11 +481,14 @@ async def paypal_webhook_listener(request: Request, db: Session = Depends(get_db
             print(f"[PayPal Webhook Signature Error]: {exc}")
             raise HTTPException(status_code=401, detail=f"Webhook verification failure: {str(exc)}")
 
-    # Process Completed Capture
-    if event_type == "PAYMENT.CAPTURE.COMPLETED":
-        order_id = resource.get("supplementary_data", {}).get("related_ids", {}).get("order_id")
+    # Process Completed Capture or Checkout Order Approval
+    if event_type in ["PAYMENT.CAPTURE.COMPLETED", "CHECKOUT.ORDER.APPROVED"]:
+        order_id = resource.get("supplementary_data", {}).get("related_ids", {}).get("order_id") or resource.get("id")
         amount_str = resource.get("amount", {}).get("value", "0.0")
-        amount = float(amount_str)
+        try:
+            amount = float(amount_str)
+        except (ValueError, TypeError):
+            amount = 0.0
         custom_id = resource.get("custom_id")
 
         if not custom_id and order_id:
@@ -494,35 +497,62 @@ async def paypal_webhook_listener(request: Request, db: Session = Depends(get_db
                 custom_id = tx.tenant_id
 
         tenant_id = custom_id or "tenant-enterprise-4401"
+        cu_allocated = amount * 100.0  # $1.00 = 100 Compute Units
 
         # Check for idempotency: if order already completed, ignore duplicate
         tx = db.query(Transaction).filter(Transaction.order_id == (order_id or resource.get("id"))).first()
         if tx and tx.payment_status == "COMPLETED":
             return {"status": "ALREADY_PROCESSED"}
 
-        # Credit User
+        # Credit User with Compute Units
         user = db.query(User).filter(User.tenant_id == tenant_id).first()
         if not user:
             user = User(tenant_id=tenant_id, email=f"{tenant_id}@apexsovereign.local", credits_balance=0.0)
             db.add(user)
 
-        user.credits_balance = float(user.credits_balance) + amount
+        user.credits_balance = float(user.credits_balance) + cu_allocated
 
         if tx:
             tx.payment_status = "COMPLETED"
+            tx.credits_added = cu_allocated
         else:
             new_tx = Transaction(
                 tenant_id=tenant_id,
                 order_id=order_id or resource.get("id", f"capture-{int(time.time())}"),
                 amount=amount,
                 currency=resource.get("amount", {}).get("currency_code", "USD"),
-                credits_added=amount,
+                credits_added=cu_allocated,
                 payment_status="COMPLETED",
                 payment_method="PAYPAL_WEBHOOK",
             )
             db.add(new_tx)
 
         db.commit()
-        print(f"[PayPal Webhook Auto-Provisioned] Credited ${amount:.2f} to tenant '{tenant_id}'")
+        print(f"[PayPal Webhook Auto-Provisioned] Credited {cu_allocated:.1f} CU (${amount:.2f}) to tenant '{tenant_id}'")
+
+        # Asynchronous dispatch to n8n apex-coo-gateway workflow if configured
+        coo_webhook_url = os.getenv("N8N_COO_GATEWAY_WEBHOOK_URL", os.getenv("COO_GATEWAY_WEBHOOK_URL", ""))
+        if coo_webhook_url:
+            try:
+                import hashlib
+                sig = hashlib.sha256(f"{tenant_id}:{order_id}:{cu_allocated}".encode("utf-8")).hexdigest()
+                requests.post(
+                    coo_webhook_url,
+                    json={
+                        "source": "apexsovereign.payment_router",
+                        "workflow": "apex-coo-gateway",
+                        "event_type": event_type,
+                        "tenant_id": tenant_id,
+                        "order_id": order_id,
+                        "compute_units_allocated": cu_allocated,
+                        "amount": amount,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "raw_resource": resource,
+                    },
+                    headers={"Content-Type": "application/json", "X-Apex-Signature": sig},
+                    timeout=5,
+                )
+            except Exception as coo_exc:
+                print(f"[COO-GATEWAY WARNING] payment_router n8n dispatch exception: {coo_exc}")
 
     return {"status": "SUCCESS", "event_type": event_type}

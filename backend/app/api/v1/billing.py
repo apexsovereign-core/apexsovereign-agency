@@ -451,6 +451,31 @@ async def handle_paypal_webhook(
                     except Exception as email_err:
                         logger.error("Webhook: automated email receipt dispatch failed (non-blocking): %s", email_err)
 
+                # Trigger n8n apex-coo-gateway workflow dispatch if configured
+                coo_webhook_url = os.getenv("N8N_COO_GATEWAY_WEBHOOK_URL", os.getenv("COO_GATEWAY_WEBHOOK_URL", ""))
+                if coo_webhook_url and not idempotent_replay:
+                    try:
+                        import hashlib
+                        import httpx
+                        coo_payload = {
+                            "source": "apexsovereign.billing_v1",
+                            "workflow": "apex-coo-gateway",
+                            "event_type": event_type,
+                            "tenant_id": tenant_id,
+                            "order_id": order_id,
+                            "compute_units_allocated": credits_alloc,
+                            "amount": amount_val,
+                            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                            "raw_resource": resource,
+                        }
+                        sig = hashlib.sha256(f"{tenant_id}:{order_id}:{credits_alloc}".encode("utf-8")).hexdigest()
+                        headers_coo = {"Content-Type": "application/json", "X-Apex-Signature": sig}
+                        async with httpx.AsyncClient(timeout=5.0) as client:
+                            await client.post(coo_webhook_url, json=coo_payload, headers=headers_coo)
+                        logger.info("Webhook: dispatched to n8n apex-coo-gateway (%s)", coo_webhook_url)
+                    except Exception as coo_err:
+                        logger.warning("Webhook: n8n dispatch non-blocking warning: %s", coo_err)
+
     # 4. Handle PAYMENT.CAPTURE.REFUNDED, REVERSED, and CUSTOMER.DISPUTE.*
     elif event_type in (
         "PAYMENT.CAPTURE.REFUNDED",

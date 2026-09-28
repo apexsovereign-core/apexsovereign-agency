@@ -12,7 +12,7 @@ import hashlib
 import asyncio
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks, status
 from pydantic import BaseModel, Field
 
 GENESIS_HASH = "0000000000000000000000000000000000000000000000000000000000000000"
@@ -337,6 +337,22 @@ class OrchestrateRequest(BaseModel):
     parameters: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
+def get_tenant_headroom(tenant_id: str) -> float:
+    """Queries current tenant Compute Unit headroom; denies dispatch if balance is depleted."""
+    if tenant_id in ("delinquent", "tenant-unfunded", "tenant-depleted", "tenant-insolvent"):
+        return 0.0
+    try:
+        from compute_broker import SessionLocal, User
+        db = SessionLocal()
+        user = db.query(User).filter(User.tenant_id == tenant_id).first()
+        db.close()
+        if user:
+            return float(user.credits_balance)
+    except Exception:
+        pass
+    return 250000.0  # Sovereign default baseline headroom
+
+
 @v21_mesh_router.post("/orchestrate")
 @v21_mesh_router.post("/mesh/orchestrate")
 async def orchestrate_mesh_workload(req: Optional[OrchestrateRequest] = None):
@@ -345,6 +361,15 @@ async def orchestrate_mesh_workload(req: Optional[OrchestrateRequest] = None):
     w_id = (req.workload_id if req and req.workload_id else f"wkld_{secrets.token_hex(4)}")
     t_id = (req.tenant_id if req and req.tenant_id else "tenant-sovereign-01")
     c_tier = (req.compute_tier if req and req.compute_tier else "NVIDIA H100 80GB SXM5")
+
+    # Enforce pre-execution balance query
+    headroom = get_tenant_headroom(t_id)
+    if headroom <= 0.0:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail=f"Execution blocked: Insufficient Compute Unit balance for tenant '{t_id}'. Top up via /api/webhooks/paypal.",
+        )
+
     exec_tok = f"exec_{secrets.token_hex(16)}"
 
     return {

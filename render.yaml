@@ -34,5 +34,7 @@ services:
         sync: false
       - key: INGESTION_WEBHOOK_SECRET
         generateValue: true
+      - key: AGENT_WEBHOOK_SECRET
+        generateValue: true
       - key: ALLOWED_ORIGINS
         value: "https://apexsovereign.ai,https://www.apexsovereign.ai,https://*.vercel.app"

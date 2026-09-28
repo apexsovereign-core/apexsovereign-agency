@@ -19,7 +19,7 @@ GENESIS_HASH = "0000000000000000000000000000000000000000000000000000000000000000
 MAX_QUEUE_CAPACITY = 5000
 MAX_PAYLOAD_BYTES = 32768
 
-v21_mesh_router = APIRouter(prefix="/v21/mesh", tags=["Pillar II: Computational Mesh v21"])
+v21_mesh_router = APIRouter(prefix="/v21", tags=["Pillar II: Computational Mesh v21"])
 
 class MeshEvent(BaseModel):
     event_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -169,6 +169,7 @@ mesh_engine = ComputationalMeshEngine()
 # Compatibility alias
 mesh = mesh_engine
 
+@v21_mesh_router.get("/mesh/status")
 @v21_mesh_router.get("/status")
 async def get_mesh_status():
     return {
@@ -185,6 +186,7 @@ async def get_mesh_status():
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
+@v21_mesh_router.post("/mesh/emit")
 @v21_mesh_router.post("/emit")
 async def emit_mesh_event(event: MeshEvent):
     mesh_engine.evaluate_compliance(event)
@@ -221,6 +223,7 @@ async def emit_mesh_event(event: MeshEvent):
         "verification_url": f"/v21/mesh/verify-chain?event_id={event.event_id}"
     }
 
+@v21_mesh_router.get("/mesh/ledger")
 @v21_mesh_router.get("/ledger")
 async def get_mesh_ledger(limit: int = 50):
     items = mesh_engine.ledger[-limit:]
@@ -231,6 +234,7 @@ async def get_mesh_ledger(limit: int = 50):
         "ledger": items
     }
 
+@v21_mesh_router.get("/mesh/verify-chain")
 @v21_mesh_router.get("/verify-chain")
 async def verify_chain_lineage():
     current_expected = GENESIS_HASH
@@ -260,6 +264,7 @@ async def verify_chain_lineage():
 # V21 Arbitrage, Mesh Discovery & Orchestration Endpoints
 # ---------------------------------------------------------------------------
 @v21_mesh_router.get("/arbitrage/rates")
+@v21_mesh_router.get("/mesh/arbitrage/rates")
 async def get_arbitrage_rates():
     """Returns live spot-market arbitrage payload comparing retail vs Apex rates."""
     return {
@@ -274,6 +279,7 @@ async def get_arbitrage_rates():
     }
 
 
+@v21_mesh_router.get("/mesh/nodes")
 @v21_mesh_router.get("/nodes")
 async def get_mesh_nodes():
     """Queries real-time distributed bare-metal mesh nodes."""
@@ -332,6 +338,7 @@ class OrchestrateRequest(BaseModel):
 
 
 @v21_mesh_router.post("/orchestrate")
+@v21_mesh_router.post("/mesh/orchestrate")
 async def orchestrate_mesh_workload(req: Optional[OrchestrateRequest] = None):
     """Executes zero-copy asynchronous workload routing over V21 execution layer."""
     import secrets

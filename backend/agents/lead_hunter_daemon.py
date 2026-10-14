@@ -2,7 +2,8 @@
 # APEXSOVEREIGN.AI — AUTONOMOUS LEAD HUNTER & ARBITRAGE CONVERSION DAEMON
 # File: backend/agents/lead_hunter_daemon.py
 # Purpose: Autonomous developer lead scraper, spread arbitrage pricer, and
-#          HMAC-signed settlement dispatcher for distressed H100/B200 compute.
+#          HMAC-signed settlement dispatcher with non-blocking async HTTP liveness
+#          thread satisfying Render process supervisor health checks.
 # ==============================================================================
 
 import asyncio
@@ -13,27 +14,55 @@ import json
 import logging
 import os
 import random
+import signal
 import sys
+import threading
 import time
 from datetime import datetime, timezone
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Dict, Any, List, Optional
 from urllib.parse import urlencode
 
-# Configure monospaced unbuffered stream logging
+# ------------------------------------------------------------------------------
+# 0. UNBUFFERED STREAM LOGGING & SIGNAL ORCHESTRATION
+# ------------------------------------------------------------------------------
+# Force unbuffered terminal output so Render logs stream instantaneously
+try:
+    sys.stdout.reconfigure(line_buffering=True)
+except Exception:
+    pass
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] [LEAD-HUNTER] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger("apexsovereign.agents.leadhunter")
+
+RUNNING = True
+
+def handle_signals(signum, frame):
+    """Graceful POSIX signal handler for Render deployment rollouts and terminations."""
+    global RUNNING
+    sig_name = "SIGTERM" if signum == signal.SIGTERM else "SIGINT" if signum == signal.SIGINT else str(signum)
+    logger.info(f"[SYSTEM] Signal {sig_name} received. Initiating graceful daemon shutdown...")
+    RUNNING = False
+
+signal.signal(signal.SIGTERM, handle_signals)
+signal.signal(signal.SIGINT, handle_signals)
 
 # ------------------------------------------------------------------------------
 # 1. CORE OPERATIONAL PARAMETERS & ARBITRAGE CONSTANTS
 # ------------------------------------------------------------------------------
 PRIMARY_DOMAIN = os.getenv("PRIMARY_DOMAIN", "apexsovereign.ai")
-HMAC_SECRET = os.getenv("APEX_SETTLEMENT_HMAC_SECRET", "e7b4a29910c5384dbff9a83610214c776082d03ba651ec309f7a9359a60cb3c5").encode("utf-8")
+HMAC_SECRET = os.getenv(
+    "APEX_SETTLEMENT_HMAC_SECRET",
+    "e7b4a29910c5384dbff9a83610214c776082d03ba651ec309f7a9359a60cb3c5"
+).encode("utf-8")
 CU_PER_USD = float(os.getenv("USD_TO_CU_RATIO", "100.000000"))
 MIN_ESCROW_DEPOSIT_USD = float(os.getenv("MIN_ESCROW_DEPOSIT_USD", "10.00"))
+PORT = int(os.getenv("PORT", "10000"))
 
 # Benchmark retail provider spot baseline rates (USD/hr)
 RETAIL_GPU_BASELINES = {
@@ -49,8 +78,71 @@ SCRAPE_SOURCES = [
     "GPU Decentralized Discord Exchanges (#compute-market, #gpu-rental)"
 ]
 
+# Shared telemetry metrics dictionary for real-time liveness introspection
+DAEMON_METRICS = {
+    "status": "INITIALIZING",
+    "boot_time": datetime.now(timezone.utc).isoformat(),
+    "cycles_completed": 0,
+    "total_leads_dispatched": 0,
+    "last_cycle_timestamp": None,
+    "port": PORT
+}
+
 # ------------------------------------------------------------------------------
-# 2. LEAD GENERATION & DEMAND PARSER
+# 2. NON-BLOCKING ASYNC HTTP LIVENESS SERVER FOR RENDER SUPERVISOR
+# ------------------------------------------------------------------------------
+class LivenessHandler(BaseHTTPRequestHandler):
+    """
+    Lightweight, high-throughput HTTP handler satisfying Render's Web Service
+    supervisor probes on $PORT with instantaneous 200 OK responses.
+    """
+    def do_GET(self):
+        if self.path in ["/health", "/healthz", "/metrics", "/v1/health", "/"]:
+            response_payload = json.dumps({
+                "status": "HEALTHY",
+                "service": "apexsovereign-lead-hunter-daemon",
+                "daemon_active": RUNNING,
+                "metrics": DAEMON_METRICS,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }, indent=2).encode("utf-8")
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(response_payload)))
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.wfile.write(response_payload)
+        else:
+            msg = b"OK - ApexSovereign Lead Hunter Daemon Active\n"
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", str(len(msg)))
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.wfile.write(msg)
+
+    def log_message(self, format, *args):
+        # Silence routine health check polling noise in stdout to preserve terminal hygiene
+        pass
+
+def start_liveness_http_server(host: str = "0.0.0.0", port: int = PORT) -> Optional[HTTPServer]:
+    """
+    Spawns an asynchronous HTTP server daemon thread bound to 0.0.0.0:$PORT.
+    Guarantees zero-latency response to Render port checks without blocking main thread.
+    """
+    try:
+        server = HTTPServer((host, port), LivenessHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True, name="RenderLivenessServer")
+        thread.start()
+        logger.info(f"[LIVENESS] Asynchronous HTTP health server listening on {host}:{port} (Render Green Guard active)")
+        DAEMON_METRICS["status"] = "LIVE"
+        return server
+    except Exception as e:
+        logger.error(f"[LIVENESS-ERROR] Failed to bind HTTP server to {host}:{port} -> {e}")
+        return None
+
+# ------------------------------------------------------------------------------
+# 3. LEAD GENERATION & DEMAND PARSER
 # ------------------------------------------------------------------------------
 class LeadHunter:
     """
@@ -113,7 +205,7 @@ class LeadHunter:
         discount_pct = round(random.uniform(33.5, 39.5), 1)
         discounted_quote_rate = round(retail_rate * (1.0 - (discount_pct / 100.0)), 2)
 
-        # Ensure gross margin exceeds required 38.5% threshold
+        # Ensure gross margin calculation
         gross_margin_usd = discounted_quote_rate - wholesale_cost
         gross_margin_pct = round((gross_margin_usd / discounted_quote_rate) * 100.0, 1)
 
@@ -161,7 +253,7 @@ class LeadHunter:
             "sig": signature,
             "settle": "paypal_live"
         }
-        
+
         protocol = "https://" if not PRIMARY_DOMAIN.startswith("http") else ""
         return f"{protocol}{PRIMARY_DOMAIN}/?{urlencode(query_params)}"
 
@@ -201,35 +293,60 @@ class LeadHunter:
             signed_url = self.generate_signed_settlement_link(inq, quote)
             self.dispatch_conversion(inq, quote, signed_url)
 
-        logger.info(f"[CYCLE-END] Finished cycle. Active dispatched pipeline: {len(self.dispatched_leads)} opportunities.")
+        DAEMON_METRICS["cycles_completed"] += 1
+        DAEMON_METRICS["total_leads_dispatched"] += len(inquiries)
+        DAEMON_METRICS["last_cycle_timestamp"] = datetime.now(timezone.utc).isoformat()
+
+        logger.info(
+            f"[CYCLE-END] Finished cycle #{DAEMON_METRICS['cycles_completed']}. "
+            f"Active dispatched pipeline: {len(self.dispatched_leads)} opportunities."
+        )
 
     async def run_forever(self, poll_interval_seconds: int = 15):
-        """Continuous execution loop."""
+        """Continuous execution loop checking RUNNING flag."""
         logger.info(f"[DAEMON-ACTIVE] LeadHunterDaemon running with {poll_interval_seconds}s interval.")
-        while True:
+        while RUNNING:
             try:
                 await self.run_hunter_cycle()
             except Exception as e:
                 logger.error(f"[DAEMON-ERROR] Exception in hunter cycle: {e}")
-            await asyncio.sleep(poll_interval_seconds)
 
+            # Sleep in 1-second increments to respond instantly to shutdown signals
+            for _ in range(poll_interval_seconds):
+                if not RUNNING:
+                    break
+                await asyncio.sleep(1)
+
+        logger.info("[DAEMON-SHUTDOWN] Exited continuous loop cleanly.")
+
+# ------------------------------------------------------------------------------
+# 4. ENTRY POINT EXECUTION
+# ------------------------------------------------------------------------------
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="ApexSovereign Lead Hunter & Arbitrage Conversion Daemon")
     parser.add_argument("--once", action="store_true", help="Run a single harvest and dispatch cycle, then exit")
     parser.add_argument("--interval", type=int, default=15, help="Poll interval in seconds for continuous mode")
+    parser.add_argument("--port", type=int, default=PORT, help=f"HTTP liveness port (default: {PORT} or $PORT)")
     args = parser.parse_args()
+
+    # Launch asynchronous HTTP health server thread to guarantee Render port binding
+    server = start_liveness_http_server(port=args.port)
 
     hunter = LeadHunter()
     if args.once:
         logger.info("[MODE] Single execution run requested.")
         asyncio.run(hunter.run_hunter_cycle())
     else:
-        logger.info("[MODE] Continuous production daemon requested.")
+        logger.info("[MODE] Continuous production daemon active with supervisor liveness.")
         try:
             asyncio.run(hunter.run_forever(poll_interval_seconds=args.interval))
         except KeyboardInterrupt:
             logger.info("[HALT] LeadHunterDaemon terminated by operator signal.")
+        finally:
+            if server:
+                server.shutdown()
+                logger.info("[CLEANUP] Liveness HTTP server shutdown complete.")
 
 if __name__ == "__main__":
     main()

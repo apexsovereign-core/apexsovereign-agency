@@ -84,8 +84,13 @@ if not os.path.exists(INDEX_HTML_PATH):
     else:
         INDEX_HTML_PATH = os.path.join(BASE_DIR, "index.html")
 
+EXEC_OS_HTML_PATH = os.path.join(PUBLIC_DIR, "exec-os.html")
+if not os.path.exists(EXEC_OS_HTML_PATH):
+    EXEC_OS_HTML_PATH = os.path.join(BASE_DIR, "public", "exec-os.html")
+
 logger.info(f"[STATIC-RESOLVE] PUBLIC_DIR: {PUBLIC_DIR} (exists={os.path.exists(PUBLIC_DIR)})")
 logger.info(f"[STATIC-RESOLVE] INDEX_HTML_PATH: {INDEX_HTML_PATH} (exists={os.path.exists(INDEX_HTML_PATH)})")
+logger.info(f"[STATIC-RESOLVE] EXEC_OS_HTML_PATH: {EXEC_OS_HTML_PATH} (exists={os.path.exists(EXEC_OS_HTML_PATH)})")
 
 # Anti-replay transmission set
 _PROCESSED_TRANSMISSION_IDS = set()
@@ -121,17 +126,17 @@ app.add_middleware(
 )
 
 # ------------------------------------------------------------------------------
-# 3. STATIC FILE MOUNTING & ROOT ROUTE DEFINITION
+# 3. STATIC FILE MOUNTING & DUAL ROUTE DEFINITIONS
 # ------------------------------------------------------------------------------
 if os.path.exists(PUBLIC_DIR):
     app.mount("/public", StaticFiles(directory=PUBLIC_DIR), name="public")
     logger.info(f"[STATIC-MOUNT] Mounted {PUBLIC_DIR} at /public")
 
-@app.get("/", tags=["Customer Storefront"])
+@app.get("/", tags=["Developer Marketplace"])
 async def root_storefront():
     """
-    Serves the Diamond Cyan customer storefront index.html.
-    Provides immediate customer UI hydration with deep-link parameter parsing.
+    Serves the Diamond Cyan developer marketplace storefront (index.html).
+    Clean, high-conversion developer UI with transparent spot pricing and deep-link parameter parsing.
     """
     if os.path.exists(INDEX_HTML_PATH):
         return FileResponse(
@@ -147,7 +152,34 @@ async def root_storefront():
         status_code=status.HTTP_200_OK,
         content={
             "status": "APEXSOVEREIGN_CORE_ACTIVE",
-            "message": "Customer storefront initializing. Ensure public/index.html is mounted.",
+            "message": "Developer marketplace storefront initializing. Ensure public/index.html is mounted.",
+            "version": "2.2.0"
+        }
+    )
+
+@app.get("/exec-os", tags=["Operator Telemetry"])
+@app.get("/admin", tags=["Operator Telemetry"])
+async def exec_os_operator():
+    """
+    Dedicated Operator Telemetry & Diagnostic OS Terminal (Exec-OS).
+    Displays live eBPF sockmap telemetry, node fleet health, and failover simulator.
+    Kept separate from the developer marketplace to preserve high-conversion minimalism.
+    """
+    if os.path.exists(EXEC_OS_HTML_PATH):
+        return FileResponse(
+            EXEC_OS_HTML_PATH,
+            media_type="text/html",
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "status": "EXEC_OS_OFFLINE",
+            "message": "Exec-OS terminal initializing. Ensure public/exec-os.html exists.",
             "version": "2.2.0"
         }
     )

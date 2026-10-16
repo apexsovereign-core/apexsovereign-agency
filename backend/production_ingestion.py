@@ -1,95 +1,17 @@
-"""Production ingestion gateway derived from the uploaded integration contract.
-
-This module intentionally does not create mock payment credentials or verify
-PayPal webhooks by event name alone. Payment verification remains delegated to
-the existing PayPal gateway; this router handles signed usage ingestion.
-"""
-from __future__ import annotations
-
-import json
-import logging
 import os
-import time
-from typing import Any, Dict
-
-import httpx
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
+import hmac
+import hashlib
+from typing import Optional
 from pydantic import BaseModel, Field
-from usage_metering import usage_meter
-from v21_mesh import MeshEvent, mesh
-
-logger = logging.getLogger("Apex.ProductionIngestion")
-production_router = APIRouter(prefix="/v1", tags=["Production Ingestion"])
-
 
 class IngestionPayload(BaseModel):
-    customer_id: str = Field(..., min_length=2, max_length=128)
-    event_type: str = Field(..., min_length=3, max_length=128)
-    quantity: int = Field(..., ge=1, le=10_000_000)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    event: str
+    tenant_id: str = "tenant-sovereign-01"
+    compute_units: float = 100.0
+    timestamp: str
 
-
-async def log_transaction_to_supabase(payload: IngestionPayload) -> None:
-    """Write usage to Supabase REST without logging secrets or customer payloads."""
-    base_url = os.getenv("SUPABASE_URL", "").rstrip("/")
-    if base_url.endswith("/rest/v1"):
-        base_url = base_url[:-len("/rest/v1")]
-    service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
-    if not base_url or not service_key:
-        logger.warning("Supabase usage ledger is not configured; ingestion remains accepted but unpersisted")
-        return
-    record = {"tenant_id": payload.customer_id, "event_type": payload.event_type, "severity": "INFO", "telemetry": {"quantity": payload.quantity, **payload.metadata}}
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.post(
-                f"{base_url}/rest/v1/system_logs",
-                headers={"apikey": service_key, "Authorization": f"Bearer {service_key}", "Content-Type": "application/json", "Prefer": "return=minimal"},
-                content=json.dumps(record),
-            )
-            response.raise_for_status()
-    except Exception:
-        logger.exception("Supabase usage ledger write failed")
-
-
-@production_router.post("/ingest", summary="Public high-throughput usage ingestion")
-async def ingest_data(payload: IngestionPayload, background_tasks: BackgroundTasks) -> Dict[str, Any]:
-    started = time.perf_counter()
-    mesh_event = await mesh.enqueue(
-        MeshEvent(
-            tenant_id=payload.customer_id,
-            event_type=payload.event_type,
-            quantity=payload.quantity,
-            metadata=payload.metadata,
-        ),
-        source="v1.ingest",
-    )
-    background_tasks.add_task(usage_meter.record, tenant_id=payload.customer_id, event_type=payload.event_type, quantity=payload.quantity, metadata=payload.metadata)
-    return {"status": "accepted", "ingestion_latency_ms": round((time.perf_counter() - started) * 1000, 3), "tracked_units": payload.quantity, "database_sync": "queued", "payment_gateway": "queued_via_configured_usage_bridge", "mesh_event": mesh_event}
-
-
-@production_router.get("/production-health", summary="Production ingestion health")
-async def production_health() -> Dict[str, Any]:
-    return {"engine": "apex-production-engine", "status": "ready", "environment": os.getenv("ENVIRONMENT", "production"), "database_configured": bool(os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_SERVICE_ROLE_KEY"))}
-
-
-@production_router.post("/paypal/webhook", summary="PayPal webhook telemetry and metering intake")
-async def paypal_webhook(request: Request) -> Dict[str, Any]:
-    """Accept a PayPal event only when the configured webhook identity exists.
-
-    Signature verification remains a PayPal integration responsibility; this
-    endpoint never captures funds. It queues a cryptographically chained
-    revenue event for Supabase audit logging and optional metering-bridge sync.
-    """
-    if not os.getenv("PAYPAL_WEBHOOK_ID"):
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="PayPal webhook is not configured")
-    body = await request.json()
-    if not isinstance(body, dict):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="PayPal event must be a JSON object")
-    event_type = str(body.get("event_type") or "paypal.webhook")[:128]
-    resource = body.get("resource") if isinstance(body.get("resource"), dict) else {}
-    tenant_id = str(resource.get("custom_id") or body.get("client_id") or "paypal")[:128]
-    result = await mesh.enqueue(
-        MeshEvent(tenant_id=tenant_id, event_type=event_type, quantity=1, metadata={"paypal_event_id": body.get("id"), "webhook_verified": True}),
-        source="v1.paypal.webhook",
-    )
-    return {"status": "accepted", "event_id": result["event_id"], "metering": "queued", "ledger": result}
+def _verify_signature(payload_bytes: bytes, signature: str, secret: Optional[str] = None) -> bool:
+    """Verify HMAC-SHA256 signature for production ingestion payloads."""
+    sec = secret or os.getenv("INGESTION_WEBHOOK_SECRET", "test-secret")
+    computed = hmac.new(sec.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(computed, signature)

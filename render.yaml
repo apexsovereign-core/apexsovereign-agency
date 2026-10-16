@@ -1,9 +1,76 @@
+# ==============================================================================
+# APEXSOVEREIGN.AI — PRODUCTION RENDER BLUEPRINT INFRASTRUCTURE MANIFEST
+# Repository Root: /opt/render/project/src/ (Zero Subdirectory Nesting)
+# ==============================================================================
+
 services:
+  # ----------------------------------------------------------------------------
+  # Service 1: ApexSovereign Primary Gateway & FastAPI Revenue Engine
+  # ----------------------------------------------------------------------------
   - type: web
-    name: apexsovereign-agency
+    name: apex-revenue-engine
     env: python
-    region: ohio
-    plan: free
-    rootDir: apexsovereign-agency
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000} & python3 agent_swarm.py
+    region: oregon
+    plan: starter
+    rootDir: .
+    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
+    startCommand: "python3 -m uvicorn main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: ENVIRONMENT
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: PAYPAL_MODE
+        value: live
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_LIVE_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: RUNPOD_API_KEY
+        sync: false
+      - key: RUNPOD_GRAPHQL_URL
+        value: "https://api.runpod.io/graphql"
+      - key: APEX_HMAC_SECRET
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: "https://apexsovereign.ai,https://www.apexsovereign.ai,https://*.vercel.app,http://localhost:3000"
+
+  # ----------------------------------------------------------------------------
+  # Service 2: Autonomous Agent Swarm Daemon (Background Worker)
+  # ----------------------------------------------------------------------------
+  - type: worker
+    name: apex-agent-swarm
+    env: python
+    region: oregon
+    plan: starter
+    rootDir: .
+    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
+    startCommand: "python3 agent_swarm.py"
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: ENVIRONMENT
+        value: production
+      - key: FASTAPI_MAIN_URL
+        value: "http://apex-revenue-engine:10000"
+      - key: PROVISIONER_URL
+        value: "http://apex-revenue-engine:10000/v1/provision/execute"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: RUNPOD_API_KEY
+        sync: false
+      - key: APEX_HMAC_SECRET
+        sync: false

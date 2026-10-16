@@ -68,7 +68,7 @@ from agent_api import agent_router
 from agent_middleware import AgentSecurityMiddleware, ApexTrustLayerMiddleware, ObservabilityMiddleware
 from observability import telemetry
 from usage_metering import usage_meter
-from production_ingestion import production_router
+from backend.production_ingestion import production_router
 try:
     from backend.mesh_failover_engine import (
         mesh_router,

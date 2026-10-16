@@ -242,6 +242,8 @@
     .brand-text {
       display: flex;
       flex-direction: column;
+      white-space: nowrap !important;
+      flex-shrink: 0;
     }
     .brand-title {
       font-family: var(--font-mono);
@@ -252,9 +254,12 @@
       display: flex;
       align-items: center;
       gap: 0.35rem;
+      white-space: nowrap !important;
+      flex-shrink: 0;
     }
     .brand-title .cyan {
       color: var(--cyan-neon);
+      white-space: nowrap !important;
     }
     .brand-subtitle {
       font-family: var(--font-mono);
@@ -263,6 +268,8 @@
       color: var(--gold-sovereign);
       text-transform: uppercase;
       font-weight: 600;
+      white-space: nowrap !important;
+      flex-shrink: 0;
     }
 
     /* Telemetry Tele-Pills */
@@ -1145,17 +1152,17 @@
     <div class="nav-container">
       
       <!-- Brand Logo with Diamond Cyan Core Vector -->
-      <a href="/" class="brand-group">
-        <div class="diamond-icon-wrap">
-          <svg class="diamond-svg" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 32px; height: 32px; display: block;">
+      <a href="/" class="brand-group" style="white-space: nowrap !important; flex-shrink: 0; text-decoration: none;">
+        <div class="diamond-icon-wrap" style="flex-shrink: 0;">
+          <svg class="diamond-svg" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 32px; height: 32px; display: block; flex-shrink: 0;">
             <polygon points="16,2 30,16 16,30 2,16" stroke="#00F2FE" stroke-width="2" fill="rgba(0, 242, 254, 0.12)" />
             <polygon points="16,8 24,16 16,24 8,16" stroke="#00F2FE" stroke-width="1.5" fill="#050508" />
             <circle cx="16" cy="16" r="3" fill="#D4AF37" />
           </svg>
         </div>
-        <div class="brand-text">
-          <span class="brand-title">ApexSovereign<span class="cyan">.ai</span></span>
-          <span class="brand-subtitle">// SOVEREIGN COMPUTE BROKER</span>
+        <div class="brand-text" style="white-space: nowrap !important; display: flex; flex-direction: column;">
+          <span class="brand-title" style="white-space: nowrap !important; font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 1rem; letter-spacing: -0.02em; color: #FFFFFF; display: flex; align-items: center; gap: 0.35rem;">APEXSOVEREIGN<span class="cyan" style="color: #00F2FE; white-space: nowrap !important;">.AI</span></span>
+          <span class="brand-subtitle" style="white-space: nowrap !important; font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; letter-spacing: 0.1em; color: #D4AF37; text-transform: uppercase; font-weight: 600;">// SOVEREIGN COMPUTE BROKER</span>
         </div>
       </a>
 

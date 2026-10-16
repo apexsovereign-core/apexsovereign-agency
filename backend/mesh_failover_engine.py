@@ -18,6 +18,8 @@ import time
 import json
 import hashlib
 import secrets
+import asyncio
+import urllib.request
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, HTTPException, status
@@ -80,6 +82,9 @@ QUORUM_STATE = {
     "last_failover_timestamp": None,
     "last_failover_reason": None,
 }
+HEALTH_MONITOR_INTERVAL_SECONDS = max(
+    1.0, float(os.getenv("MESH_HEALTH_INTERVAL_SECONDS", "5"))
+)
 
 SYSTEM_LOG_BUFFER: List[Dict[str, Any]] = [
     {
@@ -233,6 +238,62 @@ async def evaluate_mesh_health_and_failover(force_target_region: Optional[str] =
         "message": "All cluster regions operating within SLA thresholds (<15% loss, <250ms latency).",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
+
+def _probe_region_endpoint(region_id: str, endpoint: str) -> Dict[str, Any]:
+    """Probe an optional region health URL and return measured latency/status."""
+    started = time.perf_counter()
+    try:
+        with urllib.request.urlopen(endpoint, timeout=3.0) as response:
+            elapsed_ms = round((time.perf_counter() - started) * 1000.0, 2)
+            healthy = 200 <= response.status < 300
+            return {
+                "region_id": region_id,
+                "healthy": healthy,
+                "latency_ms": elapsed_ms,
+                "packet_loss_pct": 0.0 if healthy else 100.0,
+                "last_heartbeat": datetime.now(timezone.utc).isoformat(),
+            }
+    except Exception as exc:
+        return {
+            "region_id": region_id,
+            "healthy": False,
+            "latency_ms": 3000.0,
+            "packet_loss_pct": 100.0,
+            "last_heartbeat": datetime.now(timezone.utc).isoformat(),
+            "probe_error": str(exc),
+        }
+
+
+async def run_mesh_health_monitor(stop_event: asyncio.Event) -> None:
+    """Continuously probe configured regions and invoke the existing failover evaluator."""
+    probe_tasks = {
+        region_id: os.getenv(
+            f"MESH_PROBE_URL_{region_id.upper().replace('-', '_')}", ""
+        ).strip()
+        for region_id in REGIONS_STATE
+    }
+    probe_tasks = {region_id: endpoint for region_id, endpoint in probe_tasks.items() if endpoint}
+
+    while not stop_event.is_set():
+        if probe_tasks:
+            results = await asyncio.gather(
+                *(
+                    asyncio.to_thread(_probe_region_endpoint, region_id, endpoint)
+                    for region_id, endpoint in probe_tasks.items()
+                )
+            )
+            for result in results:
+                state = REGIONS_STATE[result["region_id"]]
+                state["latency_ms"] = result["latency_ms"]
+                state["packet_loss_pct"] = result["packet_loss_pct"]
+                state["last_heartbeat"] = result["last_heartbeat"]
+                state["health"] = "HEALTHY" if result["healthy"] else "DEGRADED"
+        await evaluate_mesh_health_and_failover()
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=HEALTH_MONITOR_INTERVAL_SECONDS)
+        except asyncio.TimeoutError:
+            continue
 
 
 # ---------------------------------------------------------------------------

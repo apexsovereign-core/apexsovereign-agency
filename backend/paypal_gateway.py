@@ -95,16 +95,24 @@ def get_paypal_bearer_token() -> str:
 
 def verify_paypal_signature(raw_body: bytes, headers: Dict[str, str]) -> bool:
     """Validates PayPal's asymmetric cryptographic signature via PayPal REST API with strict cert domain checking."""
+    required_headers = (
+        "paypal-auth-algo",
+        "cert-url",
+        "transmission_id",
+        "transmission_sig",
+        "transmission_time",
+    )
+    if any(not headers.get(name, "").strip() for name in required_headers):
+        print("[SECURITY] PayPal webhook rejected: incomplete cryptographic headers.")
+        return False
     cert_url = headers.get("cert-url", "")
     if cert_url and not is_valid_paypal_cert_url(cert_url):
         print(f"[SECURITY ALERT] Disallowed PayPal cert URL intercepted: {cert_url}")
         return False
 
     if not PAYPAL_WEBHOOK_ID or not PAYPAL_CLIENT_ID or not PAYPAL_CLIENT_SECRET:
-        if PAYPAL_MODE == "live":
-            print("[CRITICAL SECURITY] PAYPAL_MODE=live requires active PayPal credentials.")
-            return False
-        return True
+        print("[CRITICAL SECURITY] PayPal webhook verification requires active credentials in every environment.")
+        return False
 
     token = get_paypal_bearer_token()
     verify_url = f"{PAYPAL_BASE_URL}/v1/notifications/verify-webhook-signature"
@@ -425,18 +433,6 @@ async def secure_paypal_webhook_handler(
     raw_body = await request.body()
     transmission_id = paypal_transmission_id or ""
 
-    if transmission_id:
-        with _lock:
-            if transmission_id in _processed_transmission_ids:
-                return {
-                    "status": "ALREADY_PROCESSED",
-                    "transmission_id": transmission_id,
-                    "timestamp": int(time.time()),
-                }
-            if len(_processed_transmission_ids) >= 2000:
-                _processed_transmission_ids.pop()
-            _processed_transmission_ids.add(transmission_id)
-
     headers_dict = {
         "paypal-auth-algo": paypal_auth_algo or "",
         "cert-url": paypal_cert_url or "",
@@ -455,6 +451,18 @@ async def secure_paypal_webhook_handler(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Cryptographic signature verification rejected.",
         )
+
+    if transmission_id:
+        with _lock:
+            if transmission_id in _processed_transmission_ids:
+                return {
+                    "status": "ALREADY_PROCESSED",
+                    "transmission_id": transmission_id,
+                    "timestamp": int(time.time()),
+                }
+            if len(_processed_transmission_ids) >= 2000:
+                _processed_transmission_ids.pop()
+            _processed_transmission_ids.add(transmission_id)
 
     try:
         event = json.loads(raw_body.decode("utf-8"))

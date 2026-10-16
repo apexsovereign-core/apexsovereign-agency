@@ -5,6 +5,7 @@ Production-grade deployment entrypoint for Render.
 
 import os
 import time
+import asyncio
 from pathlib import Path
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
@@ -68,6 +69,20 @@ from agent_middleware import AgentSecurityMiddleware, ApexTrustLayerMiddleware, 
 from observability import telemetry
 from usage_metering import usage_meter
 from production_ingestion import production_router
+try:
+    from backend.mesh_failover_engine import (
+        mesh_router,
+        REGIONS_STATE,
+        QUORUM_STATE,
+        run_mesh_health_monitor,
+    )
+except ModuleNotFoundError:
+    from mesh_failover_engine import (
+        mesh_router,
+        REGIONS_STATE,
+        QUORUM_STATE,
+        run_mesh_health_monitor,
+    )
 
 # Ensure models are imported into Base.metadata before init_db
 try:
@@ -104,9 +119,15 @@ async def lifespan(app: FastAPI):
             print("[ApexSovereign] Autonomous 24/7 background worker thread initialized.")
     except Exception as worker_exc:
         print(f"[ApexSovereign Worker] Worker startup note: {worker_exc}")
+    mesh_stop_event = asyncio.Event()
+    mesh_monitor_task = asyncio.create_task(run_mesh_health_monitor(mesh_stop_event))
+    print("[ApexSovereign] Autonomous mesh health monitor initialized.")
 
     yield
 
+    mesh_stop_event.set()
+    mesh_monitor_task.cancel()
+    await asyncio.gather(mesh_monitor_task, return_exceptions=True)
     print("[ApexSovereign] Graceful shutdown completed. Releasing thread pools.")
 
 
@@ -247,6 +268,20 @@ async def health_check() -> Dict[str, Any]:
     uptime_seconds = round(time.time() - START_TIME, 2)
     db_status = get_db_health()
     now_iso = datetime.now(timezone.utc).isoformat()
+    region_snapshot = {
+        region_id: {
+            "status": state.get("health", "UNKNOWN"),
+            "role": state.get("role"),
+            "latency_ms": state.get("latency_ms"),
+            "packet_loss_pct": state.get("packet_loss_pct"),
+            "last_heartbeat": state.get("last_heartbeat"),
+        }
+        for region_id, state in REGIONS_STATE.items()
+    }
+    degraded_regions = [
+        region_id for region_id, state in REGIONS_STATE.items()
+        if state.get("health") != "HEALTHY"
+    ]
     return {
         "status": "OPERATIONAL",
         "backend": "HEALTHY",
@@ -260,8 +295,8 @@ async def health_check() -> Dict[str, Any]:
             "supabase_vault": "SYNCED"
         },
         "health_matrix": {
-            "overall_status": "ALL_SYSTEMS_OPTIMAL",
-            "healthy_subsystems_count": 9,
+            "overall_status": "DEGRADED" if degraded_regions else "ALL_SYSTEMS_OPTIMAL",
+            "healthy_subsystems_count": 9 - len(degraded_regions),
             "total_subsystems_count": 9,
             "health_pct": 100.0,
             "subsystems": {
@@ -299,6 +334,9 @@ async def health_check() -> Dict[str, Any]:
                 }
             },
             "environment": os.getenv("RENDER_ENVIRONMENT", "production"),
+            "mesh_quorum": QUORUM_STATE,
+            "regions": region_snapshot,
+            "degraded_regions": degraded_regions,
             "timestamp": now_iso
         },
         "service": "ApexSovereign Revenue Engine",
@@ -369,6 +407,7 @@ app.include_router(compute_router)
 app.include_router(payment_router)
 app.include_router(agent_router)
 app.include_router(production_router)
+app.include_router(mesh_router)
 
 # Computational Mesh & V21 Execution Engine Routers (Serving /api/v21/* and /v21/*)
 try:

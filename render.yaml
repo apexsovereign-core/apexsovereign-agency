@@ -1,23 +1,12 @@
-# ==============================================================================
-# APEXSOVEREIGN.AI — PRODUCTION RENDER BLUEPRINT INFRASTRUCTURE MANIFEST
-# File: render.yaml
-# Services:
-# 1. apex-ingestion-engine (Python FastAPI Settlement & Telemetry Gateway)
-# 2. apex-mesh-controller (Rust Axum V21 Computational Mesh Service)
-# ==============================================================================
-
 services:
-  # ----------------------------------------------------------------------------
-  # Service 1: Python Settlement & Telemetry Gateway (Web Service)
-  # ----------------------------------------------------------------------------
   - type: web
     name: apex-ingestion-engine
     env: python
     region: oregon
     plan: starter
     rootDir: .
-    buildCommand: "pip install --upgrade pip && pip install -r backend/settlement_api/requirements.txt"
-    startCommand: "python3 -m uvicorn backend.settlement_api.main:app --host 0.0.0.0 --port $PORT"
+    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
+    startCommand: "python3 -m uvicorn main:app --host 0.0.0.0 --port $PORT"
     healthCheckPath: /health
     autoDeploy: true
     envVars:
@@ -25,47 +14,27 @@ services:
         value: 3.11.0
       - key: ENVIRONMENT
         value: production
-      - key: PORT
-        value: "10000"
-      - key: PAYPAL_MODE
-        value: live
+      - key: PATH
+        value: "/opt/render/project/.venv/bin:/opt/render/project/src/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+      - key: DATABASE_URL
+        sync: false
       - key: PAYPAL_CLIENT_ID
         sync: false
-      - key: PAYPAL_LIVE_SECRET
+      - key: PAYPAL_CLIENT_SECRET
         sync: false
+      - key: PAYPAL_MODE
+        value: live
       - key: PAYPAL_WEBHOOK_ID
         sync: false
       - key: SUPABASE_URL
         sync: false
-      - key: SUPABASE_KEY
-        sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      - key: RUST_MESH_API_URL
-        value: "http://apex-mesh-controller:8081"
+      - key: N8N_COO_GATEWAY_WEBHOOK_URL
+        sync: false
+      - key: INGESTION_WEBHOOK_SECRET
+        generateValue: true
+      - key: AGENT_WEBHOOK_SECRET
+        generateValue: true
       - key: ALLOWED_ORIGINS
-        value: "https://apexsovereign.ai,https://www.apexsovereign.ai,https://*.vercel.app,http://localhost:3000"
-
-  # ----------------------------------------------------------------------------
-  # Service 2: Rust V21 Computational Mesh & Failover Controller (Private Service)
-  # ----------------------------------------------------------------------------
-  - type: pserv
-    name: apex-mesh-controller
-    env: rust
-    region: oregon
-    plan: starter
-    rootDir: backend/mesh_control
-    buildCommand: "cargo build --release"
-    startCommand: "./target/release/apex-mesh-controller"
-    autoDeploy: true
-    envVars:
-      - key: PORT
-        value: "8081"
-      - key: RUST_LOG
-        value: "info"
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_KEY
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
+        value: "https://apexsovereign.ai,https://www.apexsovereign.ai,https://*.vercel.app"

@@ -391,7 +391,6 @@ def dispatch_n8n_coo_gateway(event: Dict[str, Any], tenant_id: str, units: float
 
 
 @paypal_gateway_router.get("/api/webhooks/paypal", status_code=status.HTTP_200_OK)
-@paypal_gateway_router.get("/api/v1/billing/paypal/webhook", status_code=status.HTTP_200_OK)
 @paypal_gateway_router.get("/v3/engine/telemetry/billing/gateway", status_code=status.HTTP_200_OK)
 @paypal_gateway_router.get("/gateway", status_code=status.HTTP_200_OK)
 async def gateway_telemetry_health():
@@ -399,53 +398,14 @@ async def gateway_telemetry_health():
     return {
         "status": "OPERATIONAL",
         "gateway": "PayPal Webhook Cryptographic Telemetry Gateway",
-        "paths": [
-            "/api/v1/billing/paypal/webhook",
-            "/api/webhooks/paypal",
-            "/v3/engine/telemetry/billing/gateway",
-            "/billing/webhook"
-        ],
+        "paths": ["/api/webhooks/paypal", "/v3/engine/telemetry/billing/gateway", "/billing/webhook"],
         "mode": PAYPAL_MODE,
         "coo_gateway_configured": bool(os.getenv("N8N_COO_GATEWAY_WEBHOOK_URL") or os.getenv("COO_GATEWAY_WEBHOOK_URL")),
         "security": "Asymmetric RSA-SHA256 & Transmission Digest Verification",
-        "conversion_rate": "100 CU / 1.00 USD",
         "timestamp": int(time.time()),
     }
 
 
-@paypal_gateway_router.get("/api/v1/ledger/balance", status_code=status.HTTP_200_OK)
-async def get_ledger_balance(tenant_id: str = "tenant-sovereign-01"):
-    """
-    Live Supabase credit ledger query endpoint returning real-time Compute Units ($1 = 100 CU).
-    """
-    if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
-        try:
-            endpoint = f"{SUPABASE_URL}/rest/v1/rpc/get_tenant_cu_balance"
-            headers = {
-                "apikey": SUPABASE_SERVICE_ROLE_KEY,
-                "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
-                "Content-Type": "application/json"
-            }
-            res = requests.post(endpoint, json={"p_tenant_id": tenant_id}, headers=headers, timeout=4)
-            if res.status_code == 200:
-                return res.json()
-        except Exception as e:
-            print(f"[Supabase Balance Error] {e}")
-
-    # Fallback response for unconfigured / offline development
-    return {
-        "found": True,
-        "tenant_id": tenant_id,
-        "credits_balance": 150000.0,
-        "usd_equivalent": 1500.0,
-        "max_quota": 250000.0,
-        "tier": "ENTERPRISE_PRO",
-        "status": "ACTIVE",
-        "synced_from": "local_memory_fallback"
-    }
-
-
-@paypal_gateway_router.post("/api/v1/billing/paypal/webhook", status_code=status.HTTP_200_OK)
 @paypal_gateway_router.post("/api/webhooks/paypal", status_code=status.HTTP_200_OK)
 @paypal_gateway_router.post("/v3/engine/telemetry/billing/gateway", status_code=status.HTTP_200_OK)
 @paypal_gateway_router.post("/gateway", status_code=status.HTTP_200_OK)

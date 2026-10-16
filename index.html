@@ -37,7 +37,7 @@
     <header class="sticky top-0 z-40 border-b border-cyan/10 bg-ink/90 backdrop-blur-xl">
       <div class="mx-auto flex max-w-[1500px] items-center justify-between gap-5 px-5 py-4 lg:px-8">
         <div class="flex min-w-0 items-center gap-3">
-          <svg class="h-10 w-10 shrink-0 text-cyan drop-shadow-[0_0_12px_rgba(0,240,255,.6)]" viewBox="0 0 48 48" fill="none" aria-label="ApexSovereign diamond logo">
+          <svg class="h-10 w-10 shrink-0 text-cyan" style="filter: drop-shadow(0 0 14px rgba(0,240,255,0.85));" viewBox="0 0 48 48" fill="none" aria-label="ApexSovereign diamond logo">
             <path d="M24 2 43 20 24 46 5 20 24 2Z" fill="rgba(0,240,255,.1)" stroke="currentColor" stroke-width="2"/>
             <path d="m24 8 13 13-13 19-13-19L24 8Z" fill="rgba(0,240,255,.23)" stroke="currentColor" stroke-width="1.5"/>
             <path d="m24 8 13 13H11L24 8Z" fill="currentColor" opacity=".72"/>
@@ -81,6 +81,14 @@
         </div>
       </section>
 
+      <section class="glass mb-7 overflow-hidden rounded-xl" aria-label="Real-time hyperscaler arbitrage matrix">
+        <div class="flex items-center justify-between border-b border-cyan/10 px-5 py-4">
+          <div><p class="text-[10px] uppercase tracking-[.25em] text-cyan/70">Real-time hyperscaler arbitrage matrix</p><h2 class="mt-1 text-sm font-bold text-white">Reference rates / USD per GPU hour</h2></div>
+          <span class="hidden text-[9px] uppercase tracking-widest text-mint sm:block">LIVE SIMULATION / +32–40% EDGE</span>
+        </div>
+        <div class="overflow-x-auto"><table class="w-full min-w-[720px] text-left text-[10px]"><thead class="bg-black/25 uppercase tracking-widest text-slate-600"><tr><th class="px-5 py-3">Profile</th><th class="px-3 py-3">AWS EC2</th><th class="px-3 py-3">GCP Compute</th><th class="px-3 py-3">Azure AI</th><th class="px-3 py-3 text-cyan">Apex / edge</th></tr></thead><tbody><template x-for="row in priceMatrix" :key="row.gpu"><tr class="border-t border-cyan/10"><td class="px-5 py-3 font-bold text-white" x-text="row.gpu"></td><td class="px-3 py-3 text-slate-400" x-text="row.aws"></td><td class="px-3 py-3 text-slate-400" x-text="row.gcp"></td><td class="px-3 py-3 text-slate-400" x-text="row.azure"></td><td class="px-3 py-3 font-bold text-cyan" x-text="row.apex + ' / ' + row.discount"></td></tr></template></tbody></table></div>
+      </section>
+
       <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
         <section class="space-y-6 xl:col-span-8">
           <div class="glass relative overflow-hidden rounded-xl p-6 shadow-cyan-lg">
@@ -118,21 +126,23 @@
   </div>
 
   <dialog x-ref="provisionDialog" class="w-[min(92vw,620px)] rounded-xl border border-cyan/25 bg-[#080d15] p-0 text-slate-200 shadow-cyan-lg">
-    <form method="dialog" @submit.prevent="closeProvisionModal" class="p-6 sm:p-8"><div class="flex items-start justify-between"><div><p class="text-[10px] uppercase tracking-[.28em] text-cyan">Provisioning command modal</p><h2 class="mt-2 text-xl font-bold text-white">Deploy secure compute units</h2></div><button type="button" @click="closeProvisionModal" class="text-xl text-slate-500 hover:text-white">×</button></div><div class="mt-6 grid gap-4 sm:grid-cols-2"><label class="text-[10px] uppercase tracking-widest text-slate-500">Cluster size<select x-model="clusterSize" class="mt-2 w-full rounded border border-cyan/15 bg-ink px-3 py-3 text-xs text-white outline-none"><option>4 nodes / balanced</option><option>8 nodes / high throughput</option><option>16 nodes / autonomous scale</option></select></label><label class="text-[10px] uppercase tracking-widest text-slate-500">Region<select x-model="clusterRegion" class="mt-2 w-full rounded border border-cyan/15 bg-ink px-3 py-3 text-xs text-white outline-none"><option>US-EAST</option><option>EU-CENTRAL</option><option>AP-SOUTH</option></select></label></div><label class="mt-4 block text-[10px] uppercase tracking-widest text-slate-500">Instant SSH public key<input x-model="sshKey" placeholder="ssh-ed25519 AAAA..." class="mt-2 w-full rounded border border-cyan/15 bg-ink px-3 py-3 text-xs text-white outline-none focus:border-cyan"></label><div class="mt-4 rounded border border-cyan/10 bg-black/30 p-3 text-[10px] text-slate-400"><span class="text-cyan">CLI TOKEN</span><code class="mt-2 block break-all text-slate-300" x-text="cliToken"></code></div><div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" @click="generateToken" class="rounded border border-cyan/30 px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-cyan hover:bg-cyan/10">Generate curl / CLI token</button><button type="submit" @click="provisionCluster" class="rounded bg-cyan px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-ink hover:bg-white">Confirm provisioning</button></div></form>
+    <form method="dialog" @submit.prevent="closeProvisionModal" class="p-6 sm:p-8"><div class="flex items-start justify-between"><div><p class="text-[10px] uppercase tracking-[.28em] text-cyan">Provisioning command modal</p><h2 class="mt-2 text-xl font-bold text-white">Deploy secure compute units</h2></div><button type="button" @click="closeProvisionModal" class="text-xl text-slate-500 hover:text-white">×</button></div><div class="mt-6 grid gap-4 sm:grid-cols-2"><label class="text-[10px] uppercase tracking-widest text-slate-500">Cluster size <span class="float-right text-cyan" x-text="clusterNodes + ' nodes'"></span><input type="range" min="2" max="32" step="2" x-model.number="clusterNodes" class="mt-4 w-full accent-cyan"><span class="mt-2 flex justify-between text-[9px] text-slate-600"><span>2 / lean</span><span>32 / autonomous</span></span></label><label class="text-[10px] uppercase tracking-widest text-slate-500">Region<select x-model="clusterRegion" class="mt-2 w-full rounded border border-cyan/15 bg-ink px-3 py-3 text-xs text-white outline-none"><option>US-EAST</option><option>EU-CENTRAL</option><option>AP-SOUTH</option></select></label></div><label class="mt-4 block text-[10px] uppercase tracking-widest text-slate-500">Instant SSH public key<input x-model="sshKey" placeholder="ssh-ed25519 AAAA..." class="mt-2 w-full rounded border border-cyan/15 bg-ink px-3 py-3 text-xs text-white outline-none focus:border-cyan"></label><div class="mt-4 rounded border border-cyan/10 bg-black/30 p-3 text-[10px] text-slate-400"><span class="text-cyan">CLI TOKEN</span><code class="mt-2 block break-all text-slate-300" x-text="cliToken"></code></div><div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" @click="generateToken" class="rounded border border-cyan/30 px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-cyan hover:bg-cyan/10">Generate curl / CLI token</button><button type="submit" @click="provisionCluster" class="rounded bg-cyan px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-ink hover:bg-white">Confirm provisioning</button></div></form>
   </dialog>
 
   <script>
     function sovereignApp() {
       return {
-        backendStatus: 'HEALTHY', latency: 14.2, topupAmount: 50, clusterSize: '4 nodes / balanced', clusterRegion: 'US-EAST', sshKey: '', cliToken: 'click generate to mint a scoped token',
+        backendStatus: 'HEALTHY', latency: 14.2, topupAmount: 50, clusterNodes: 4, clusterRegion: 'US-EAST', sshKey: '', cliToken: 'click generate to mint a scoped token',
         gpus: [
           { name: 'H100 SXM5', rate: '$1.94/hr', savings: '40% SAVINGS' }, { name: 'B200 NVL72', rate: '$2.85/hr', savings: '38% SAVINGS' }, { name: 'A100 SXM4', rate: '$1.42/hr', savings: '35% SAVINGS' }, { name: 'L40S PCIe', rate: '$0.89/hr', savings: '32% SAVINGS' }
-        ], selectedGpu: { name: 'H100 SXM5', rate: '$1.94/hr', savings: '40% SAVINGS' },
+        ], selectedGpu: { name: 'H100 SXM5', rate: '$1.94/hr', savings: '40% SAVINGS' }, priceMatrix: [
+          { gpu: 'H100 SXM5', aws: '$3.26', gcp: '$3.18', azure: '$3.31', apex: '$1.94', discount: '40% edge' }, { gpu: 'B200 NVL72', aws: '$4.62', gcp: '$4.48', azure: '$4.71', apex: '$2.85', discount: '38% edge' }, { gpu: 'A100 SXM4', aws: '$2.42', gcp: '$2.36', azure: '$2.51', apex: '$1.42', discount: '35% edge' }, { gpu: 'L40S PCIe', aws: '$1.36', gcp: '$1.31', azure: '$1.43', apex: '$0.89', discount: '32% edge' }
+        ],
         nodes: [{ region: 'US-EAST', latency: 12, availability: 99.99 }, { region: 'EU-CENTRAL', latency: 18, availability: 99.97 }, { region: 'AP-SOUTH', latency: 24, availability: 99.95 }],
         logs: ['[03:31:00] SYSTEM INIT: Diamond Cyan terminal initialized.', '[03:31:05] LEDGER: HMAC SHA-256 verification passed.', '[03:31:12] MESH: US-EAST / EU-CENTRAL / AP-SOUTH synchronized.'],
         openProvisionModal() { this.$refs.provisionDialog.showModal(); }, closeProvisionModal() { this.$refs.provisionDialog.close(); },
-        generateToken() { this.cliToken = 'apexctl provision --region ' + this.clusterRegion.toLowerCase() + ' --profile ' + this.clusterSize.split(' ')[0] + ' --token AS-' + Math.random().toString(36).slice(2, 14).toUpperCase(); this.logs.unshift(`[${new Date().toLocaleTimeString()}] AUTH: Scoped CLI token generated for ${this.clusterRegion}.`); },
-        provisionCluster() { this.logs.unshift(`[${new Date().toLocaleTimeString()}] PROVISION: ${this.selectedGpu.name} allocation queued in ${this.clusterRegion}.`); if (this.$refs.provisionDialog.open) this.closeProvisionModal(); },
+        generateToken() { this.cliToken = 'apexctl provision --region ' + this.clusterRegion.toLowerCase() + ' --nodes ' + this.clusterNodes + ' --token AS-' + Math.random().toString(36).slice(2, 14).toUpperCase(); this.logs.unshift(`[${new Date().toLocaleTimeString()}] AUTH: Scoped ${this.clusterNodes}-node CLI token generated for ${this.clusterRegion}.`); },
+        provisionCluster() { this.logs.unshift(`[${new Date().toLocaleTimeString()}] PROVISION: ${this.clusterNodes}-node ${this.selectedGpu.name} allocation queued in ${this.clusterRegion}.`); if (this.$refs.provisionDialog.open) this.closeProvisionModal(); },
         initiatePayPalCheckout() { this.logs.unshift(`[${new Date().toLocaleTimeString()}] BILLING: PayPal top-up initialized for $${this.topupAmount}.`); alert(`PayPal settlement initialized for $${this.topupAmount}.`); }
       };
     }

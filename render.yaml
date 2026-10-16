@@ -1,13 +1,9 @@
 services:
-  - type: pserv
-    name: apex-lead-hunter-daemon
+  - type: web
+    name: apexsovereign-agency
     env: python
-    region: oregon
-    plan: starter
-    rootDir: .
-    buildCommand: "pip install --upgrade pip && pip install httpx pydantic fastapi uvicorn"
-    startCommand: "python3 backend/agents/lead_hunter_daemon.py"
-    autoDeploy: true
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
+    region: ohio
+    plan: free
+    rootDir: apexsovereign-agency
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000} & python3 agent_swarm.py

@@ -1,0 +1,474 @@
+openapi: 3.1.0
+info:
+  title: ApexSovereign.ai Enterprise Compute Mesh & Sovereign Utility API
+  description: |
+    Production REST API gateway for ApexSovereign Holdings.
+    Provides sub-15ms GPU arbitrage routing, real-time SMR energy telemetry,
+    atomic AethelPay double-entry financial settlement, and AuraPharm ED25519 molecular candidate tokenization.
+  version: 1.0.0
+  contact:
+    name: ApexSovereign Enterprise Architecture Team
+    email: enterprise@apexsovereign.ai
+    url: https://apexsovereign.ai
+
+servers:
+  - url: https://api.apexsovereign.ai
+    description: Global Edge Production Cluster (Sub-15ms Latency Envelope)
+  - url: http://127.0.0.1:8080
+    description: Local Mesh Development Gateway
+
+security:
+  - BearerAuth: []
+
+paths:
+  /v1/arbitrage/route:
+    post:
+      summary: Evaluate and Dispatch Sub-15ms Compute Route
+      description: Filters global H100/B200/A100 spot clusters to identify lowest cost node satisfying latency and architecture constraints.
+      operationId: evaluateMeshRoute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArbitrageRouteRequest'
+      responses:
+        '200':
+          description: Optimal compute route established.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArbitrageRouteResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '402':
+          $ref: '#/components/responses/PaymentRequiredError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailableError'
+
+  /v1/telemetry/grid:
+    get:
+      summary: Retrieve Real-Time SMR & Grid Power Telemetry
+      description: Returns Locational Marginal Pricing (LMP) and automatic MW diversion metrics for stranded nuclear / SMR capacity.
+      operationId: getGridTelemetry
+      responses:
+        '200':
+          description: Live grid telemetry snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnergyTelemetryResponse'
+        '402':
+          $ref: '#/components/responses/PaymentRequiredError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailableError'
+
+  /v1/biopharma/submit:
+    post:
+      summary: Submit Molecular Discovery Candidate for ED25519 Tokenization
+      description: Ingests AlphaFold3 molecular simulation payloads and mints an asymmetric ED25519 JWS token logged to the immutable ledger.
+      operationId: submitMolecularCandidate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MolecularCandidateRequest'
+      responses:
+        '200':
+          description: Molecular IP validated and cryptographically sealed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MolecularProofResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '402':
+          $ref: '#/components/responses/PaymentRequiredError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailableError'
+
+  /v1/billing/deposit:
+    post:
+      summary: Settle USD Deposit to Compute Units (CU)
+      description: Converts USD deposits to Compute Units at the fixed peg ($1.00 USD = 100.000000 CU) via atomic PostgreSQL RPC.
+      operationId: settleDeposit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepositRequest'
+      responses:
+        '200':
+          description: Deposit confirmed and CU minted to tenant balance.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepositResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailableError'
+
+  /v1/keys/mint:
+    post:
+      summary: Mint HMAC-SHA256 Signed Enterprise API Key
+      description: Generates a cryptographically signed tenant key prefixed with apk_live_ or apk_test_ linked to client tier.
+      operationId: mintApiKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KeyMintRequest'
+      responses:
+        '200':
+          description: Enterprise key minted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeyMintResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailableError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: apk_live_token
+      description: |
+        Enterprise HMAC-SHA256 signed API token.
+        Format: `apk_live_<tenant_uuid>:<random_hex>_<sig>` or `apk_test_<tenant_uuid>:<random_hex>_<sig>`.
+
+  responses:
+    BadRequestError:
+      description: Malformed payload or validation error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StandardError'
+          example:
+            error: BAD_REQUEST
+            message: "Missing required property: architecture"
+            status_code: 400
+
+    PaymentRequiredError:
+      description: Compute unit balance depleted (<= 0 CU).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StandardError'
+          example:
+            error: PAYMENT_REQUIRED
+            message: "Compute unit balance exhausted (0.000000 CU). Deposit USD funds via AethelPay."
+            status_code: 402
+
+    ServiceUnavailableError:
+      description: Upstream data center or circuit breaker failover in progress.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StandardError'
+          example:
+            error: SERVICE_UNAVAILABLE
+            message: "Sub-15ms candidate cluster currently offline. Hot-swap rerouting active."
+            status_code: 503
+
+  schemas:
+    StandardError:
+      type: object
+      required:
+        - error
+        - message
+        - status_code
+      properties:
+        error:
+          type: string
+          example: PAYMENT_REQUIRED
+        message:
+          type: string
+          example: "Balance exhausted. Please deposit funds."
+        status_code:
+          type: integer
+          example: 402
+
+    ArbitrageRouteRequest:
+      type: object
+      required:
+        - architecture
+        - gpu_count
+      properties:
+        architecture:
+          type: string
+          enum: [H100_SXM5, B200_NVL72, A100_SXM4]
+          example: H100_SXM5
+        gpu_count:
+          type: integer
+          minimum: 1
+          maximum: 512
+          example: 8
+        max_acceptable_latency_ms:
+          type: integer
+          default: 15
+          example: 15
+        max_cost_budget_usd_hr:
+          type: number
+          format: double
+          example: 2.20
+
+    ArbitrageRouteResponse:
+      type: object
+      required:
+        - status
+        - selected_node_id
+        - target_region
+        - spot_price_usd_hr
+        - net_arbitrage_savings_pct
+        - estimated_latency_ms
+        - execution_duration_micros
+      properties:
+        status:
+          type: string
+          example: ROUTE_CONFIRMED
+        selected_node_id:
+          type: string
+          example: node-nordic-h100-01
+        target_region:
+          type: string
+          example: eu-north-ice
+        spot_price_usd_hr:
+          type: number
+          format: double
+          example: 1.45
+        retail_benchmark_usd_hr:
+          type: number
+          format: double
+          example: 4.10
+        net_arbitrage_savings_pct:
+          type: number
+          format: double
+          example: 64.6
+        estimated_latency_ms:
+          type: integer
+          example: 11
+        grid_lmp_usd_mwh:
+          type: number
+          format: double
+          example: 28.50
+        routing_decision:
+          type: string
+          example: SOVEREIGN_OPTIMAL_DISPATCH
+        execution_duration_micros:
+          type: integer
+          example: 412
+
+    EnergyTelemetryResponse:
+      type: object
+      required:
+        - timestamp
+        - grid_lmp_usd_mwh
+        - smr_generation_mw
+        - commercial_compute_mw
+        - aurapharm_diverted_mw
+        - clearing_spot_price_gpu_hr
+        - allocation_state
+      properties:
+        timestamp:
+          type: number
+          format: double
+          example: 1775581200.0
+        grid_lmp_usd_mwh:
+          type: number
+          format: double
+          example: 28.50
+        smr_generation_mw:
+          type: number
+          format: double
+          example: 45.0
+        commercial_compute_mw:
+          type: number
+          format: double
+          example: 25.0
+        aurapharm_diverted_mw:
+          type: number
+          format: double
+          example: 20.0
+        clearing_spot_price_gpu_hr:
+          type: number
+          format: double
+          example: 1.62
+        allocation_state:
+          type: string
+          example: DIVERTED_TO_AURAPHARM
+
+    MolecularCandidateRequest:
+      type: object
+      required:
+        - target_protein_id
+        - amino_acid_sequence
+        - target_affinity_nm
+        - simulation_seed
+        - cluster_origin
+      properties:
+        target_protein_id:
+          type: string
+          example: 7KRR_SARS_COV2_M_PRO
+        amino_acid_sequence:
+          type: string
+          example: SGFRKMAFPSGKVEGCMVQVTCGTTTLNGLWLDDVVYCPRHVICTSEDMLNPNYEDLLIRKSNHNFLVQAGNVQLRVIG
+        target_affinity_nm:
+          type: number
+          format: float
+          example: 0.42
+        simulation_seed:
+          type: integer
+          example: 42091
+        cluster_origin:
+          type: string
+          example: node-nordic-h100-01
+
+    MolecularProofResponse:
+      type: object
+      required:
+        - asset_id
+        - target_protein_id
+        - sequence_hash
+        - predicted_plddt_score
+        - jws_token
+        - timestamp
+        - status
+      properties:
+        asset_id:
+          type: string
+          example: ip-mol-1775581200000-a9f3b2c1d0e4
+        target_protein_id:
+          type: string
+          example: 7KRR_SARS_COV2_M_PRO
+        sequence_hash:
+          type: string
+          example: 4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a
+        predicted_plddt_score:
+          type: number
+          format: float
+          example: 89.12
+        jws_token:
+          type: string
+          example: eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9...
+        timestamp:
+          type: number
+          format: double
+          example: 1775581200.0
+        status:
+          type: string
+          example: VALIDATED_AND_SEALED
+
+    DepositRequest:
+      type: object
+      required:
+        - tenant_id
+        - usd_amount
+        - reference_id
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+          example: a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d
+        usd_amount:
+          type: number
+          format: double
+          minimum: 1.00
+          example: 100.00
+        reference_id:
+          type: string
+          example: pp-cap-9988112233
+        metadata:
+          type: object
+          additionalProperties: true
+
+    DepositResponse:
+      type: object
+      required:
+        - status
+        - entry_id
+        - reference_id
+        - usd_settled
+        - cu_minted
+        - new_balance_cu
+        - timestamp
+      properties:
+        status:
+          type: string
+          example: SETTLED
+        entry_id:
+          type: string
+          format: uuid
+          example: 00000000-0000-0000-0000-000000000001
+        reference_id:
+          type: string
+          example: pp-cap-9988112233
+        usd_settled:
+          type: number
+          format: double
+          example: 100.00
+        cu_minted:
+          type: number
+          format: double
+          example: 10000.000000
+        new_balance_cu:
+          type: number
+          format: double
+          example: 10000.000000
+        timestamp:
+          type: string
+          format: date-time
+          example: 2026-10-06T16:35:00Z
+
+    KeyMintRequest:
+      type: object
+      required:
+        - tenant_id
+        - tier
+        - is_live
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+          example: a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d
+        tier:
+          type: string
+          enum: [Starter, Enterprise]
+          example: Enterprise
+        is_live:
+          type: boolean
+          example: true
+
+    KeyMintResponse:
+      type: object
+      required:
+        - api_key
+        - tenant_id
+        - tier
+        - rate_limit_rps
+        - created_at
+      properties:
+        api_key:
+          type: string
+          example: apk_live_a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d:9f8e7d6c5b4a3210_8a7b6c5d4e3f2a1b
+        tenant_id:
+          type: string
+          format: uuid
+          example: a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d
+        tier:
+          type: string
+          example: Enterprise
+        rate_limit_rps:
+          type: integer
+          example: 500
+        created_at:
+          type: string
+          format: date-time
+          example: 2026-10-06T16:35:00Z

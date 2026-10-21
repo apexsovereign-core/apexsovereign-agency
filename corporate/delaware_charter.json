@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "corporate_container": {
+    "jurisdiction": "State of Delaware",
+    "entity_type": "General Corporation (C-Corporation)",
+    "legal_name": "ApexSovereign.ai, Inc.",
+    "registered_agent": {
+      "name": "The Corporation Trust Company",
+      "address": "Corporation Trust Center, 1209 Orange Street",
+      "city": "Wilmington",
+      "county": "New Castle",
+      "state": "DE",
+      "postal_code": "19801",
+      "phone": "+1-302-658-7581"
+    },
+    "incorporation_date": "2026-10-14",
+    "delaware_file_number": "7849201-DE",
+    "fiscal_year_end": "December 31"
+  },
+  "capital_structure": {
+    "authorized_shares_total": 10000000,
+    "share_class": "Common Stock",
+    "par_value_per_share_usd": 0.0001,
+    "total_authorized_capital_usd": 1000.00,
+    "delaware_franchise_tax_method": "Authorized Shares Method (Minimum $175 Bracket)",
+    "voting_rights": "One vote per share of Common Stock"
+  },
+  "cap_table_initial_issuance": {
+    "founder_allocation": {
+      "shareholder_name": "Anton John G. Intes",
+      "title": "Founder, Chief Executive Officer & Chief Systems Architect",
+      "shares_issued": 8500000,
+      "ownership_percentage": 85.00,
+      "consideration_paid_usd": 850.00,
+      "issuance_date": "2026-10-14",
+      "vesting_schedule": {
+        "duration_months": 48,
+        "cliff_months": 12,
+        "cliff_percentage": 25.00,
+        "monthly_vesting_percentage": 2.083333,
+        "acceleration_clause": "Single-Trigger on Involuntary Termination without Cause / Double-Trigger on Change of Control (100% immediate vesting)"
+      },
+      "irs_83b_election_required": true,
+      "irs_83b_filing_deadline": "2026-11-13T23:59:59Z"
+    },
+    "unallocated_option_pool": {
+      "pool_name": "2026 Equity Incentive Plan (ESOP)",
+      "shares_reserved": 1500000,
+      "ownership_percentage": 15.00,
+      "purpose": "Future key hires, core systems engineers, and strategic advisory allocations"
+    }
+  },
+  "intellectual_property_assignment": {
+    "agreement_type": "Confidential Information and Invention Assignment Agreement (CIIAA)",
+    "assignor": "Anton John G. Intes",
+    "assignee": "ApexSovereign.ai, Inc.",
+    "effective_date": "2026-10-14",
+    "assigned_assets": {
+      "repository_scope": "100% of all past, present, and future source code, architectures, and intellectual property",
+      "source_tree_components": [
+        "All Rust crates (crates/sovereign-operator, backend/routing)",
+        "All eBPF C kernels and XDP sockmap filters (ebpf_monitor.c, bpf_sockmap.c)",
+        "All Zero-Knowledge circuits (Poseidon hash nullifier trees, Merkle state roots)",
+        "All PostgreSQL atomic double-entry ledgers, RLS policies, and Supabase migrations",
+        "All PayPal HMAC webhook verification engines and settlement routers",
+        "All autonomous scraper daemons, quant arbitrage models, and swarm orchestration algorithms",
+        "All trademarks, domain registrations (apexsovereign.ai, www.apexsovereign.ai), and Diamond Cyan vector brand assets"
+      ],
+      "moral_rights_waiver": true,
+      "reversion_rights": false,
+      "warranties": "Sole legal owner and author; zero third-party encumbrances; zero GPL or viral license contagion"
+    }
+  },
+  "tax_and_regulatory_mandates": {
+    "irs_section_83b_election": {
+      "status": "DRAFTED_AND_READY_FOR_EXECUTION",
+      "recipient": "Internal Revenue Service",
+      "submission_rule": "Certified Mail with Return Receipt within 30 days of stock grant",
+      "election_declaration": "Taxpayer elects under Section 83(b) of the Internal Revenue Code to include in gross income the excess (if any) of the fair market value of the property at the time of transfer over the amount paid for such property ($0.00 taxable income recognized based on $0.0001 par value paid in full)."
+    },
+    "bank_resolution": {
+      "authorized_institution": "Mercury Bank / Silicon Valley Bank Division of First Citizens",
+      "authorized_signatory": "Anton John G. Intes",
+      "wire_clearing_capabilities": ["Fedwire", "ACH", "SWIFT", "PayPal Corporate Merchant Ingress"]
+    }
+  }
+}

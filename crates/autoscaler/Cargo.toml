@@ -1,0 +1,21 @@
+[package]
+name = "autoscaler"
+version = "1.0.0"
+edition = "2021"
+authors = ["ApexSovereign Systems Engineering <autoscaler@apexsovereign.ai>"]
+description = "Predictive Workload Auto-Scaler and SLA Guarantee Engine for ApexSovereign.ai"
+
+[dependencies]
+tokio = { version = "1.38", features = ["full"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+parking_lot = "0.12"
+async-trait = "0.1"
+
+[lib]
+name = "autoscaler"
+path = "src/lib.rs"

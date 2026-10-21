@@ -1,0 +1,263 @@
+# ==============================================================================
+# APEXSOVEREIGN.AI — PRODUCTION ORCHESTRATION MANIFEST
+# Mesh: apex_sovereign_net | Full Daemonization & Auto-Recovery
+# Services: AethelMesh, AethelPay, AuraPharm, Sentinel, Redis, Prometheus, n8n
+# ==============================================================================
+version: "3.9"
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. AethelMesh: Sub-18ms Rust/Axum Routing Core
+  # ----------------------------------------------------------------------------
+  aethelmesh:
+    build:
+      context: .
+      dockerfile: Dockerfile.axum
+    container_name: apexsovereign-aethelmesh
+    restart: always
+    ports:
+      - "${PORT_AETHELMESH:-8080}:8080"
+    env_file:
+      - .env.production
+    environment:
+      - PORT=8080
+      - RUST_LOG=info,aethelmesh_core=debug
+    deploy:
+      resources:
+        limits:
+          cpus: "2.00"
+          memory: 1024M
+        reservations:
+          cpus: "0.50"
+          memory: 256M
+    networks:
+      - apex_sovereign_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ----------------------------------------------------------------------------
+  # 2. Redis: Event Stream & Atomic Idempotency Buffer
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7.2-alpine
+    container_name: apexsovereign-redis
+    restart: always
+    command: >
+      sh -c 'redis-server
+      --requirepass "$$REDIS_PASSWORD"
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 512mb
+      --maxmemory-policy noeviction
+      --protected-mode yes'
+    env_file:
+      - .env.production
+    volumes:
+      - redis-data:/data
+    networks:
+      - apex_sovereign_net
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 768M
+        reservations:
+          cpus: "0.20"
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "$$REDIS_PASSWORD", "ping"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # ----------------------------------------------------------------------------
+  # 3. AethelPay: Node.js 20 Settlement & Onboarding Router ($1.00 USD = 100 CU)
+  # ----------------------------------------------------------------------------
+  aethelpay:
+    build:
+      context: .
+      dockerfile: Dockerfile.express
+    container_name: apexsovereign-aethelpay
+    restart: always
+    ports:
+      - "${PORT_AETHELPAY:-3000}:3000"
+    env_file:
+      - .env.production
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.50"
+          memory: 1024M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    networks:
+      - apex_sovereign_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:3000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ----------------------------------------------------------------------------
+  # 4. AuraPharm Sweeper: Python 3.11 Bio-Molecular Synthesis Allocator
+  # ----------------------------------------------------------------------------
+  aurapharm-sweeper:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: apexsovereign-aurapharm
+    restart: always
+    command: ["uvicorn", "services.aurapharm.basal_load_sweeper:app", "--host", "0.0.0.0", "--port", "8001"]
+    ports:
+      - "${PORT_AURAPHARM:-8001}:8001"
+    env_file:
+      - .env.production
+    environment:
+      - PORT=8001
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.50"
+          memory: 1024M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    networks:
+      - apex_sovereign_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "30m"
+        max-file: "3"
+
+  # ----------------------------------------------------------------------------
+  # 5. Sentinel Watchdog & Revenue Sentinel
+  # ----------------------------------------------------------------------------
+  sentinel-watchdog:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: apexsovereign-sentinel
+    restart: always
+    command: ["uvicorn", "services.governance.circuit_breaker:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "${PORT_GOVERNANCE:-8000}:8000"
+    env_file:
+      - .env.production
+    environment:
+      - PORT=8000
+    depends_on:
+      aethelmesh:
+        condition: service_healthy
+      aethelpay:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 512M
+        reservations:
+          cpus: "0.20"
+          memory: 128M
+    networks:
+      - apex_sovereign_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/api/v1/governance/telemetry"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # ----------------------------------------------------------------------------
+  # 6. Prometheus: Infrastructure & Latency Metric Scraper
+  # ----------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.50.1
+    container_name: apexsovereign-prometheus
+    restart: always
+    volumes:
+      - ./deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - apex_sovereign_net
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 512M
+
+  # ----------------------------------------------------------------------------
+  # 7. n8n: Automated Client Onboarding & CRM Workflow Engine
+  # ----------------------------------------------------------------------------
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: apexsovereign-n8n
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_HOST=n8n.apexsovereign.ai
+      - WEBHOOK_URL=https://n8n.apexsovereign.ai/
+      - GENERIC_TIMEZONE=UTC
+    volumes:
+      - n8n-data:/home/node/.n8n
+    networks:
+      - apex_sovereign_net
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 1024M
+
+networks:
+  apex_sovereign_net:
+    driver: bridge
+    labels:
+      com.apexsovereign.network.tier: "isolated-mesh"
+
+volumes:
+  redis-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  n8n-data:
+    driver: local

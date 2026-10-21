@@ -1,0 +1,92 @@
+{
+  "name": "ApexSovereign Compute Provisioning Flow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook/provision",
+        "options": {}
+      },
+      "id": "1d8b7462-8bfb-4720-bc78-6825dfa34431",
+      "name": "HMAC Webhook Ingress",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const crypto = require('crypto');\n\nconst signature = items[0].json.headers['x-apex-signature'];\nconst timestamp = items[0].json.headers['x-apex-timestamp'];\nconst secret = $env.N8N_HMAC_SECRET || 'sovereign-master-n8n-hmac-secret-2026';\n\n// 15-second clock drift validation window\nconst now = Date.now();\nif (Math.abs(now - parseInt(timestamp, 10)) > 15000) {\n  throw new Error('DRIFT_ATTACK_DETECTED: Timestamp outside acceptable 15s window.');\n}\n\nconst rawPayload = JSON.stringify(items[0].json.body);\nconst expectedSignature = crypto.createHmac('sha256', secret).update(rawPayload).digest('hex');\n\nif (signature !== expectedSignature) {\n  throw new Error('CRYPTOGRAPHIC_BREACH: HMAC signature mismatch.');\n}\n\nreturn items;"
+      },
+      "id": "c138fd90-1c09-4d6b-9544-77d0a2958319",
+      "name": "Verify HMAC-SHA256",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://api.coreweave.com/v1/instances",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            { "name": "user_id", "value": "={{$json.body.user_id}}" },
+            { "name": "cu_allocated", "value": "={{$json.body.cu_credited}}" },
+            { "name": "hardware", "value": "NVIDIA-H100-SXM5" }
+          ]
+        }
+      },
+      "id": "3e9b1f23-8c43-4b61-9c3f-b6736272bb01",
+      "name": "Cloud Provider Dispatch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE public.compute_reservations SET status = 'ACTIVE', updated_at = NOW() WHERE dispatch_token = $1;"
+      },
+      "id": "7a8b3c4d-9e0f-4a1b-8c2d-e3f4a5b6c7d8",
+      "name": "Supabase Status Finalize",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "HMAC Webhook Ingress": {
+      "main": [
+        [
+          {
+            "node": "Verify HMAC-SHA256",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify HMAC-SHA256": {
+      "main": [
+        [
+          {
+            "node": "Cloud Provider Dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cloud Provider Dispatch": {
+      "main": [
+        [
+          {
+            "node": "Supabase Status Finalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

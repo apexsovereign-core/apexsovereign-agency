@@ -1,0 +1,19 @@
+[Unit]
+Description=ApexSovereign.ai AethelPay Settlement & Onboarding Router
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/apexsovereign
+EnvironmentFile=/opt/apexsovereign/.env.production
+ExecStart=/usr/bin/node /opt/apexsovereign/services/aethelpay/server.js
+Restart=always
+RestartSec=3s
+StandardOutput=journal
+StandardError=journal
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

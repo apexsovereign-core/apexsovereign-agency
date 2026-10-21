@@ -1,0 +1,18 @@
+# Multi-stage production container for ApexSovereign Compute Mesh Daemon
+FROM rust:nightly as builder
+
+WORKDIR /usr/src/apexsovereign
+COPY Cargo.toml ./
+COPY crates/compute-mesh ./crates/compute-mesh
+
+WORKDIR /usr/src/apexsovereign/crates/compute-mesh
+RUN cargo build --release --bin compute-mesh-daemon
+
+FROM debian:bullseye-slim
+RUN apt-get update && apt-get install -y ca-certificates curl libssl1.1 && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=builder /usr/src/apexsovereign/crates/compute-mesh/target/release/compute-mesh-daemon /usr/local/bin/compute-mesh-daemon
+
+EXPOSE 8090
+ENTRYPOINT ["/usr/local/bin/compute-mesh-daemon"]

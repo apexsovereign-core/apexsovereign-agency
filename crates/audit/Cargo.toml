@@ -1,0 +1,34 @@
+[package]
+name = "audit"
+version = "1.0.0"
+edition = "2021"
+authors = ["ApexSovereign Cryptographic Security <security@apexsovereign.ai>"]
+description = "Autonomous Compliance and Cryptographic Audit Engine for ApexSovereign.ai"
+
+[dependencies]
+tokio = { version = "1.38", features = ["full"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.8", features = ["v4", "serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+ring = "0.17"
+sha2 = "0.10"
+hmac = "0.12"
+base64 = "0.22"
+hex = "0.4"
+parking_lot = "0.12"
+async-trait = "0.1"
+thiserror = "1.0"
+rand = "0.8"
+
+[lib]
+name = "audit"
+path = "src/lib.rs"
+
+[[bin]]
+name = "apex-audit-daemon"
+path = "src/main.rs"

@@ -1,0 +1,108 @@
+# ==============================================================================
+# ApexSovereign.ai - Operational Command 07: Automated Chaos Engineering
+# File: monitoring/chaos_spot_eviction.yaml
+# Engine: ChaosMesh / LitmusChaos Native Custom Resource Definitions
+# Scenario: Simulated Spot Node Termination & Sub-Second eBPF Socket Redirection
+# SLA Target: Zero client stream interruption & cutover latency < 1000ms
+# ==============================================================================
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: Workflow
+metadata:
+  name: spot-eviction-resilience-workflow
+  namespace: apexsovereign-prod
+  labels:
+    app.kubernetes.io/part-of: apexsovereign-core
+    experiment: spot-reclamation-hot-swap
+spec:
+  entry: spot-eviction-stress-pipeline
+  templates:
+    - name: spot-eviction-stress-pipeline
+      templateType: Serial
+      children:
+        - pre-flight-health-check
+        - inject-network-jitter-on-primary-cluster
+        - terminate-primary-gpu-spot-node
+        - post-eviction-sla-validation
+
+    # Step 1: Pre-flight Verification
+    - name: pre-flight-health-check
+      templateType: Task
+      task:
+        container:
+          name: preflight-validator
+          image: curlimages/curl:8.5.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "[CHAOS PRE-FLIGHT] Verifying cluster health status before eviction injection..."
+              STATUS=$(curl -s http://apexsovereign-backend-svc:8000/health | grep -o "healthy" || true)
+              if [ "$STATUS" != "healthy" ]; then
+                echo "Pre-flight health check failed. Aborting chaos experiment."
+                exit 1
+              fi
+              echo "[CHAOS PRE-FLIGHT] System is healthy. Proceeding to network and eviction stress."
+
+    # Step 2: Inject Network Jitter on Primary Cluster
+    - name: inject-network-jitter-on-primary-cluster
+      templateType: NetworkChaos
+      deadline: 30s
+      networkChaos:
+        action: delay
+        mode: fixed
+        value: "2"
+        selector:
+          namespaces:
+            - apexsovereign-prod
+          labelSelectors:
+            app.kubernetes.io/component: primary-gpu-worker
+        delay:
+          latency: "80ms"
+          jitter: "15ms"
+          correlation: "50"
+        direction: to
+
+    # Step 3: Hard Spot Reclamation (Simulated AWS/GCP 120s Notice Termination)
+    - name: terminate-primary-gpu-spot-node
+      templateType: PodChaos
+      deadline: 60s
+      podChaos:
+        action: pod-kill
+        mode: fixed
+        value: "1"
+        selector:
+          namespaces:
+            - apexsovereign-prod
+          labelSelectors:
+            app.kubernetes.io/component: primary-gpu-worker
+        gracePeriod: 0
+
+    # Step 4: Validate Sub-Second Cutover & SLA Escrow Integrity
+    - name: post-eviction-sla-validation
+      templateType: Task
+      task:
+        container:
+          name: post-eviction-checker
+          image: curlimages/curl:8.5.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "[CHAOS POST-CHECK] Polling eviction interceptor and escrow reserve standing..."
+              RESPONSE=$(curl -s -X POST http://apexsovereign-backend-svc:8000/v1/orchestration/eviction-notice \
+                -H "Content-Type: application/json" \
+                -d '{"provider":"CHAOS_INJECTION","instance_id":"i-chaos-kill-01","node_type":"8x NVIDIA H100 SXM5"}')
+              
+              echo "Eviction response: $RESPONSE"
+              
+              CUTOVER_MS=$(echo "$RESPONSE" | grep -o '"cutover_latency_ms":[0-9.]*' | cut -d: -f2 || echo "9999")
+              echo "[CHAOS POST-CHECK] Recorded cutover latency: ${CUTOVER_MS} ms"
+              
+              # Enforce 1000ms SLA
+              if [ $(echo "$CUTOVER_MS > 1000.0" | awk '{print ($1 > $2)}') -eq 1 ]; then
+                echo "CRITICAL: Cutover latency violated 1000ms SLA limit during chaos test!"
+                exit 1
+              fi
+              
+              echo "[CHAOS POST-CHECK] Sub-second eBPF failover SUCCESS under active node termination."

@@ -1,0 +1,106 @@
+# ==============================================================================
+# ApexSovereign.ai - Operational Command 08: Global DNS & Multi-Region Failover
+# File: k8s/global_dns_failover.yaml
+# Classification: Active-Active Anycast Routing & Sub-Second Latency Diversion
+# Standard: Cloudflare Enterprise / Route53 ARC / Envoy Multi-Cluster Ingress
+# ==============================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apexsovereign-global-traffic-policy
+  namespace: apexsovereign-prod
+  labels:
+    traffic-policy: active-active-anycast
+    compliance: soc2-type2
+data:
+  traffic_routing_policy.json: |
+    {
+      "global_service": "apexsovereign.ai",
+      "routing_strategy": "LATENCY_OPTIMIZED_WITH_SLA_BACKSTOP",
+      "sla_invariants": {
+        "max_acceptable_rtt_ms": 200.0,
+        "max_acceptable_packet_loss_pct": 0.1,
+        "health_check_interval_seconds": 5,
+        "consecutive_failures_to_reroute": 2
+      },
+      "regions": [
+        {
+          "region_id": "us-east-virginia",
+          "tier": "PRIMARY_SOVEREIGN",
+          "ingress_endpoint": "https://us-east.apexsovereign.ai",
+          "datacenter": "Equinix DC11 (Ashburn, VA)",
+          "accelerator_capacity": "64x NVIDIA H100 SXM5",
+          "rdma_interconnect": "InfiniBand Quantum-2 400Gbps",
+          "weight": 100,
+          "health_probe_path": "/health"
+        },
+        {
+          "region_id": "eu-north-stockholm",
+          "tier": "SECONDARY_STANDBY_HOT",
+          "ingress_endpoint": "https://eu-north.apexsovereign.ai",
+          "datacenter": "EcoDataCenter 1 (Falun, Sweden)",
+          "accelerator_capacity": "32x NVIDIA B200 NVL72",
+          "rdma_interconnect": "RoCEv2 800Gbps",
+          "weight": 0,
+          "auto_failover_enabled": true,
+          "health_probe_path": "/health"
+        },
+        {
+          "region_id": "ap-southeast-singapore",
+          "tier": "TERTIARY_EDGE_ROUTER",
+          "ingress_endpoint": "https://ap-southeast.apexsovereign.ai",
+          "datacenter": "Singtel Global Gateway (Jurong, Singapore)",
+          "accelerator_capacity": "32x NVIDIA H200 SXM",
+          "rdma_interconnect": "InfiniBand Quantum-2 400Gbps",
+          "weight": 0,
+          "auto_failover_enabled": true,
+          "health_probe_path": "/health"
+        }
+      ],
+      "failover_rules": [
+        {
+          "trigger": "PRIMARY_LATENCY_EXCEEDS_200MS",
+          "action": "DIVERT_30_PCT_TRAFFIC_TO_EU_NORTH",
+          "cooldown_period_sec": 300
+        },
+        {
+          "trigger": "PRIMARY_PACKET_LOSS_EXCEEDS_0_1_PCT",
+          "action": "FULL_ACTIVE_ACTIVE_SPLIT_50_50",
+          "cooldown_period_sec": 600
+        },
+        {
+          "trigger": "PRIMARY_REGION_TOTAL_UNREACHABLE",
+          "action": "INSTANT_ANYCAST_BGP_WITHDRAW_AND_PROMOTE_EU_NORTH",
+          "cooldown_period_sec": 900
+        }
+      ]
+    }
+
+---
+# Multi-Cluster Ingress & Global Routing Endpoint Definition
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: apexsovereign-multi-region-ingress
+  namespace: apexsovereign-prod
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    external-dns.alpha.kubernetes.io/hostname: "apexsovereign.ai,global.apexsovereign.ai"
+    nginx.ingress.kubernetes.io/load-balance: "ewma"
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "APEX_CLUSTER_AFFINITY"
+    nginx.ingress.kubernetes.io/session-cookie-hash: "sha1"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "86400"
+spec:
+  rules:
+    - host: global.apexsovereign.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: apexsovereign-backend-svc
+                port:
+                  number: 8000

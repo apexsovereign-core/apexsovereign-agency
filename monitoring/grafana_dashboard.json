@@ -1,0 +1,259 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      },
+      {
+        "datasource": "Prometheus",
+        "enable": true,
+        "expr": "changes(spot_cutover_latency_ms[1m]) > 0",
+        "name": "Spot Eviction Events",
+        "iconColor": "#F2495C",
+        "tagKeys": "instance_id,provider"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "SECTION 1: GOLDEN SIGNALS (LATENCY, TRAFFIC, ERRORS, SATURATION)",
+      "type": "row"
+    },
+    {
+      "id": 1,
+      "title": "API Gateway Request Latency (P50, P95, P99 SLA: 500ms)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[1m])) by (le)) * 1000",
+          "legendFormat": "P50 Latency (ms)",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[1m])) by (le)) * 1000",
+          "legendFormat": "P95 Latency (ms)",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[1m])) by (le)) * 1000",
+          "legendFormat": "P99 Latency (ms)",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": { "lineInterpolation": "smooth", "fillOpacity": 15 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 250 },
+              { "color": "red", "value": 500 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Traffic Throughput (RPS by Operational Route)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{path=~\"/v1/.*\"}[1m])) by (path)",
+          "legendFormat": "{{path}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "lineInterpolation": "linear", "fillOpacity": 20 }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Error Rate & SLA Breach Dispatches",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{status=~\"5..\"}[1m]))",
+          "legendFormat": "HTTP 5xx Server Errors (req/s)",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(http_requests_total{status=~\"4..\"}[1m]))",
+          "legendFormat": "HTTP 4xx Client Errors (req/s)",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(increase(sla_breach_escrow_compensation_total[5m]))",
+          "legendFormat": "SLA Breach Escrow Payouts ($250 events)",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "fillOpacity": 25 }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Compute Saturation: GPU Load & eBPF sockmap Table Utilization",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "targets": [
+        {
+          "expr": "avg(gpu_utilization_ratio) * 100",
+          "legendFormat": "Average GPU Compute Load (%)",
+          "refId": "A"
+        },
+        {
+          "expr": "avg(gpu_memory_used_bytes / gpu_memory_total_bytes) * 100",
+          "legendFormat": "Average VRAM Allocation (%)",
+          "refId": "B"
+        },
+        {
+          "expr": "(ebpf_sockmap_entries_active / ebpf_sockmap_max_capacity) * 100",
+          "legendFormat": "eBPF sockmap Table Saturation (%)",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 75 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+      "id": 101,
+      "title": "SECTION 2: SPOT RESILIENCE & ESCROW TREASURY METRICS",
+      "type": "row"
+    },
+    {
+      "id": 5,
+      "title": "Spot Eviction Cutover Latency (SLA Limit: 1000ms)",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 18 },
+      "targets": [
+        {
+          "expr": "spot_cutover_latency_ms",
+          "legendFormat": "Total Cutover Time (ms)",
+          "refId": "A"
+        },
+        {
+          "expr": "ebpf_socket_redirection_latency_ms",
+          "legendFormat": "eBPF sockmap Redirection Time (ms)",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 500 },
+              { "color": "red", "value": 1000 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Liquid SLA Escrow Reserve Balance ($500,000 Base Pool)",
+      "type": "stat",
+      "gridPos": { "h": 7, "w": 6, "x": 12, "y": 18 },
+      "targets": [
+        {
+          "expr": "sla_escrow_reserve_balance_usd",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 400000 },
+              { "color": "green", "value": 480000 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Active WebSocket Telemetry Stream Health",
+      "type": "gauge",
+      "gridPos": { "h": 7, "w": 6, "x": 18, "y": 18 },
+      "targets": [
+        {
+          "expr": "telemetry_websocket_active_clients",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "max": 1000,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["apexsovereign", "production", "sre", "soc2", "day2"],
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": { "refresh_intervals": ["5s", "10s", "30s", "1m"] },
+  "timezone": "browser",
+  "title": "ApexSovereign.ai - Master Operational Golden Signals & SLA Dashboard",
+  "uid": "apex-golden-signals-v1",
+  "version": 1
+}

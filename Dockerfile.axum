@@ -1,0 +1,56 @@
+# syntax=docker/dockerfile:1.4
+# ==============================================================================
+# APEXSOVEREIGN.AI — AETHELMESH RUST/AXUM CORE DOCKERFILE
+# Multi-Stage, Minimal Footprint, Non-Root Hardened Production Build
+# Builder: debian:bookworm-slim | Runtime: gcr.io/distroless/cc-debian12
+# Target Architecture: linux/amd64, linux/arm64
+# ==============================================================================
+
+# Stage 1: Cargo Build Environment
+FROM rust:nightly AS builder
+
+WORKDIR /build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config \
+    libssl-dev \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Optimize for low-latency kernel socket dispatch
+ENV RUSTFLAGS="-C target-cpu=native -C opt-level=3 -C codegen-units=1 -C panic=abort"
+
+# Cache dependency compilation layer
+COPY aethelmesh-core/Cargo.toml ./
+RUN mkdir src && \
+    echo "fn main() { println!(\"aethelmesh-prebuild\"); }" > src/main.rs && \
+    cargo build --release && \
+    rm -rf src
+
+# Inject genuine production source tree
+COPY aethelmesh-core/src ./src
+RUN touch src/main.rs && \
+    cargo build --release --locked --bin aethelmesh-core && \
+    strip /build/target/release/aethelmesh-core
+
+# Stage 2: Distroless Minimal Non-Root Runtime
+FROM gcr.io/distroless/cc-debian12:nonroot AS runtime
+
+LABEL maintainer="ApexSovereign Holdings DevOps <infra@apexsovereign.ai>"
+LABEL service="aethelmesh-routing-core"
+
+WORKDIR /app
+
+# Copy stripped binary from builder
+COPY --from=builder /build/target/release/aethelmesh-core /usr/local/bin/aethelmesh-core
+
+# Enforce distroless non-root security context (UID 65532: nonroot)
+USER nonroot:nonroot
+
+ENV PORT=8080 \
+    RUST_LOG=info,aethelmesh_core=debug \
+    RUST_BACKTRACE=1
+
+EXPOSE 8080
+
+ENTRYPOINT ["/usr/local/bin/aethelmesh-core"]

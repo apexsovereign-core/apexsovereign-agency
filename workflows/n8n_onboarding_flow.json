@@ -1,0 +1,77 @@
+{
+  "name": "ApexSovereign Enterprise Client Onboarding & Key Provisioning Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook/onboard",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "Webhook Inbound Gateway",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Verify Cryptographic HMAC Signature\nconst crypto = require('crypto');\nconst secret = $env.N8N_HMAC_SECRET || 'n8n-default-secret';\nconst rawBody = JSON.stringify($json.body);\nconst signature = $headers['x-apex-signature'];\n\nconst expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');\nif (signature !== expected) {\n  throw new Error('HMAC signature verification failed');\n}\n\nreturn [{\n  json: {\n    tenant_id: $json.body.tenant_id,\n    client_email: $json.body.client_email,\n    raw_api_key: $json.body.raw_api_key,\n    usd_funded: $json.body.usd_funded,\n    cu_minted: $json.body.cu_minted,\n    cluster_preference: $json.body.cluster_preference\n  }\n}];"
+      },
+      "name": "Verify HMAC & Sanitize",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "onboarding@apexsovereign.ai",
+        "toEmail": "={{ $json.client_email }}",
+        "subject": "Your Sovereign Compute Gateway Credentials (50,000 CU Active)",
+        "html": "<h2>Welcome to ApexSovereign.ai High-Performance Mesh</h2><p>Your enterprise tenant <b>{{ $json.tenant_id }}</b> has been funded with <b>{{ $json.cu_minted }} CU</b> (${{ $json.usd_funded }} USD).</p><p><b>API Endpoint:</b> https://api.apexsovereign.ai/v1</p><p><b>Production API Key:</b> <code>{{ $json.raw_api_key }}</code></p><p><i>Notice: Prompts are executed under Zero-Prompt Data Retention (Zero-TDR). Never share your secret key.</i></p>"
+      },
+      "name": "Send Encrypted Welcome Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "channel": "#ops-enterprise-inflow",
+        "text": "🚀 *New Enterprise Compute Tenant Activated*\n- *Tenant ID:* `{{ $json.tenant_id }}`\n- *Funded:* `${{ $json.usd_funded }} USD` ({{ $json.cu_minted }} CU)\n- *Cluster:* `{{ $json.cluster_preference }}`\n- *Contact:* `{{ $json.client_email }}`"
+      },
+      "name": "Notify Internal Ops Channel",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [680, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Inbound Gateway": {
+      "main": [
+        [
+          {
+            "node": "Verify HMAC & Sanitize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify HMAC & Sanitize": {
+      "main": [
+        [
+          {
+            "node": "Send Encrypted Welcome Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Internal Ops Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

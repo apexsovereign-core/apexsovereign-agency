@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: apexsovereign-backend
+    env: python
+    region: oregon
+    plan: starter
+    buildCommand: "pip install --upgrade pip && pip install -r backend/requirements.txt"
+    startCommand: "python3 -m uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT --proxy-headers"
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: ENVIRONMENT
+        value: production
+      - key: PATH
+        value: "/opt/render/project/.venv/bin:/opt/render/project/src/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+      - key: DATABASE_URL
+        sync: false
+      - key: APP_SECRET_API_KEY
+        generateValue: true
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_MODE
+        value: live
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: N8N_COO_GATEWAY_WEBHOOK_URL
+        sync: false
+      - key: INGESTION_WEBHOOK_SECRET
+        generateValue: true
+      - key: AGENT_WEBHOOK_SECRET
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: "https://apexsovereign.ai,https://www.apexsovereign.ai,https://*.vercel.app,http://localhost:3000,http://127.0.0.1:3000"

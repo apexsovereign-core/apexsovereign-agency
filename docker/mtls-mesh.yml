@@ -1,0 +1,86 @@
+version: "3.9"
+
+networks:
+  mesh-zero-trust:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  mesh-ca-certs:
+    driver: local
+
+services:
+  # Automated Certificate Authority & Rotation Controller
+  security-mesh-ca:
+    image: apexsovereign/security-mesh:latest
+    container_name: apex-security-mesh-ca
+    restart: always
+    environment:
+      - RUST_LOG=info
+      - MESH_DOMAIN=internal.apexsovereign.ai
+      - CA_TTL_DAYS=365
+      - LEAF_TTL_HOURS=24
+    volumes:
+      - mesh-ca-certs:/etc/apexsovereign/certs
+    networks:
+      mesh-zero-trust:
+        ipv4_address: 172.28.0.10
+    healthcheck:
+      test: ["CMD", "curl", "-k", "https://localhost:8443/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # Envoy Zero-Trust Sidecar Proxy enforcing Mutual TLS Handshakes
+  envoy-mesh-sidecar:
+    image: envoyproxy/envoy:v1.30-latest
+    container_name: apex-envoy-sidecar
+    restart: always
+    depends_on:
+      security-mesh-ca:
+        condition: service_healthy
+    volumes:
+      - mesh-ca-certs:/etc/envoy/certs:ro
+      - ./docker/envoy-mtls.yaml:/etc/envoy/envoy.yaml:ro
+    networks:
+      mesh-zero-trust:
+        ipv4_address: 172.28.0.20
+    ports:
+      - "8443:8443"
+      - "9901:9901"
+
+  # Internal Microservice: Immutable Ledger Engine
+  ledger-core:
+    image: apexsovereign/aethelmesh-core:latest
+    container_name: apex-ledger-core
+    restart: always
+    environment:
+      - PORT=8080
+      - SERVICE_IDENTIFIER=ledger-core
+      - MESH_SAN=ledger.internal.apexsovereign.ai
+    networks:
+      mesh-zero-trust:
+        ipv4_address: 172.28.0.30
+    depends_on:
+      - envoy-mesh-sidecar
+
+  # Edge Router Dispatched Worker with Client Certificate
+  edge-router:
+    image: apexsovereign/edge-router:latest
+    container_name: apex-edge-router
+    restart: always
+    environment:
+      - UPSTREAM_LEDGER_URL=https://envoy-mesh-sidecar:8443
+      - MESH_CLIENT_CERT_PATH=/etc/apexsovereign/certs/client.pem
+      - MESH_CLIENT_KEY_PATH=/etc/apexsovereign/certs/client-key.pem
+    volumes:
+      - mesh-ca-certs:/etc/apexsovereign/certs:ro
+    networks:
+      mesh-zero-trust:
+        ipv4_address: 172.28.0.40
+    depends_on:
+      - envoy-mesh-sidecar

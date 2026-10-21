@@ -1,0 +1,91 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains; preload"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(), payment=(self \"https://www.paypal.com\")"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.paypal.com https://*.paypalobjects.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https://apexsovereign-agency.onrender.com https://api.apexsovereign.ai https://*.supabase.co https://*.paypal.com https://*.sentry.io wss:; frame-src 'self' https://www.paypal.com https://*.paypal.com; object-src 'none'; base-uri 'self';"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/v1/:path*",
+      "destination": "https://apexsovereign-agency.onrender.com/v1/:path*"
+    },
+    {
+      "source": "/v21/:path*",
+      "destination": "https://apexsovereign-agency.onrender.com/v21/:path*"
+    },
+    {
+      "source": "/health",
+      "destination": "https://apexsovereign-agency.onrender.com/health"
+    },
+    {
+      "source": "/api/health",
+      "destination": "https://apexsovereign-agency.onrender.com/health"
+    },
+    {
+      "source": "/api/telemetry/summary",
+      "destination": "https://apexsovereign-agency.onrender.com/api/telemetry/summary"
+    },
+    {
+      "source": "/api/v21/:path*",
+      "destination": "https://apexsovereign-agency.onrender.com/v21/:path*"
+    },
+    {
+      "source": "/telemetry/:path*",
+      "destination": "https://apexsovereign-agency.onrender.com/telemetry/:path*"
+    },
+    {
+      "source": "/billing/:path*",
+      "destination": "https://apexsovereign-agency.onrender.com/billing/:path*"
+    },
+    {
+      "source": "/metrics",
+      "destination": "https://apexsovereign-agency.onrender.com/metrics"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

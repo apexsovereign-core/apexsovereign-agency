@@ -1,0 +1,121 @@
+version: "2.6.0"
+platform: "apexsovereign.ai"
+architecture_standard: "Enterprise Hybrid Agentic Matrix"
+metadata_fabric:
+  source_of_truth: "ApexUnifiedLedger"
+  grounding_mode: "zero-copy-federated"
+  latency_sla_seconds: 90
+agent_registry:
+  - agent_id: "sovereign-sdr-alpha"
+    type: "autonomous_sales_pipeline"
+    scope_topics:
+      - "Inbound Signal Processing"
+      - "Lead Qualification & Enrichment"
+      - "Automated CRM Record Mutation"
+    actions_allowed:
+      - "execute_compute_arbitrage_quote"
+      - "dispatch_crm_webhook"
+    guardrails:
+      max_budget_per_task_usd: 50.00
+      human_escalation_triggers:
+        - "contract_value_exceeds_threshold"
+        - "negative_sentiment_detected"
+  - agent_id: "sovereign-support-omega"
+    type: "autonomous_operations_desk"
+    scope_topics:
+      - "Node Failover Troubleshooting"
+      - "SLA Resolution"
+    actions_allowed:
+      - "reroute_baremetal_node"
+      - "generate_audit_trace"
+    guardrails:
+      human_escalation_triggers:
+        - "infrastructure_failure_critical"
+distribution_layer:
+  integration_targets:
+    - "microsoft_teams_webhook"
+    - "outlook_graph_api"
+    - "salesforce_external_client_app"
+  delivery_mode: "outbound_webhook"
+security:
+  require_tenant_scope: true
+  redact_fields: [api_key, authorization, access_token, refresh_token]
+  audit_all_steps: true
+  allow_network_actions: false
+  human_approval_for: [send_external_message, close_ticket]
+engineering:
+  deterministic_first: true
+  llm_policy: optional_classifier_only
+  failure_mode: persist_and_retry
+  idempotency: required
+  max_concurrency_per_tenant: 4
+entities: [accounts, contacts, deals, tickets, activity_logs, agent_runs, agent_steps]
+metrics: [agent_runs_total, agent_steps_total, agent_run_duration_seconds, agent_guardrail_blocks_total]
+# Runtime-compatible workflow definitions for the registry above.
+agents:
+  sovereign-sdr-alpha:
+    description: Autonomous sales development and CRM pipeline operator.
+    triggers: [lead.created, webhook.crm.lead_created]
+    capabilities: [execute_compute_arbitrage_quote, dispatch_crm_webhook]
+    workflow:
+      - id: quote
+        action: execute_compute_arbitrage_quote
+        requires: [lead.id]
+      - id: crm_dispatch
+        action: dispatch_crm_webhook
+        requires: [lead.id, quote.id]
+    guardrails:
+      approval_required: false
+      max_external_actions: 0
+  sovereign-support-omega:
+    description: Autonomous operations desk for node failover and SLA resolution.
+    triggers: [ticket.created, infrastructure.failure]
+    capabilities: [reroute_baremetal_node, generate_audit_trace]
+    workflow:
+      - id: reroute
+        action: reroute_baremetal_node
+        requires: [incident.id, incident.node_id]
+      - id: audit
+        action: generate_audit_trace
+        requires: [incident.id]
+    guardrails:
+      approval_required: false
+      max_external_actions: 0
+  inbound_pipeline:
+    description: Qualifies inbound demand and advances a deal through deterministic stages.
+    triggers: [lead.created]
+    capabilities: [classify_lead, create_activity, advance_deal]
+    workflow:
+      - id: qualify
+        action: classify_lead
+        requires: [lead.email, lead.company]
+      - id: log_activity
+        action: create_activity
+        requires: [lead.id]
+      - id: advance_pipeline
+        action: advance_deal
+        requires: [deal.id, lead.qualification]
+    guardrails:
+      approval_required: false
+      max_external_actions: 0
+  customer_resolution:
+    description: Triage support tickets and prepare a resolution plan.
+    triggers: [ticket.created]
+    capabilities: [classify_ticket, draft_resolution, create_activity]
+    workflow:
+      - id: triage
+        action: classify_ticket
+        requires: [ticket.id, ticket.subject]
+      - id: prepare_resolution
+        action: draft_resolution
+        requires: [ticket.classification]
+      - id: record_activity
+        action: create_activity
+        requires: [ticket.id]
+    guardrails:
+      approval_required: true
+      max_external_actions: 0
+metadata:
+  source: canonical-apexsovereign-core
+  generated_at: 2026-09-22
+  note: Supplied Enterprise Hybrid Agentic Matrix v2.6 integrated into the deterministic runtime.

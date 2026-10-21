@@ -1,0 +1,147 @@
+# ============================================================================
+# ApexSovereign.ai - PRODUCTION PROMETHEUS ALERTING & ANOMALY RULES
+# File: deploy/monitoring/alert_rules.yml
+# Specification:
+#   - P99 routing latency > 18ms SLA violation
+#   - Database replication / sync lag > 500ms
+#   - Global edge & inference error rates > 0.5%
+#   - Net compute margin < 12% warning / < 0% emergency breaker
+#   - Hardware thermal throttling & DCGM vRAM exhaustion
+#   - Webhook integration payloads to internal incident response channels
+# ============================================================================
+
+groups:
+  - name: apexsovereign_sla_and_latency_alerts
+    rules:
+      # Rule 1: Sub-18ms SLA Violation (P99 Latency > 18ms)
+      - alert: ApexEdgeLatencySlaBreachP99
+        expr: histogram_quantile(0.99, sum(rate(apex_edge_request_duration_seconds_bucket[2m])) by (le, region)) * 1000 > 18.0
+        for: 45s
+        labels:
+          severity: critical
+          tier: networking
+          sla_impact: "true"
+          system: "apexsovereign-edge-mesh"
+        annotations:
+          summary: "P99 edge routing latency exceeded 18ms SLA in region {{ $labels.region }}"
+          description: "Observed P99 latency in {{ $labels.region }} is {{ $value | printf \"%.2f\" }}ms (SLA threshold: 18.0ms). Initiating automated cross-region traffic diversion."
+          runbook_url: "https://ops.apexsovereign.ai/runbooks/sub-18ms-edge-sla-breach"
+          dashboard_url: "https://grafana.apexsovereign.ai/d/edge-mesh/latency?var-region={{ $labels.region }}"
+
+      # Rule 2: High Request Error Rate (> 0.5%)
+      - alert: ApexInferenceHighErrorRate
+        expr: (sum(rate(apex_edge_requests_total{status=~"5.."}[2m])) / sum(rate(apex_edge_requests_total[2m]))) * 100 > 0.5
+        for: 1m
+        labels:
+          severity: critical
+          tier: gateway
+          system: "apexsovereign-streaming-gateway"
+        annotations:
+          summary: "Inference gateway HTTP 5xx error rate exceeded 0.5%"
+          description: "Current error rate is {{ $value | printf \"%.3f\" }}% over the last 2 minutes. Automatic node health probing active."
+          runbook_url: "https://ops.apexsovereign.ai/runbooks/gateway-5xx-triage"
+
+  - name: apexsovereign_database_and_replication_alerts
+    rules:
+      # Rule 3: Supabase PostgreSQL Replication Lag > 500ms
+      - alert: ApexPostgresReplicationLagCritical
+        expr: pg_replication_lag_seconds * 1000 > 500
+        for: 30s
+        labels:
+          severity: critical
+          tier: database
+          system: "supabase-postgresql-cluster"
+        annotations:
+          summary: "Database replica lag exceeded 500ms threshold on {{ $labels.instance }}"
+          description: "Postgres streaming replication lag is {{ $value | printf \"%.1f\" }}ms. Risk of stale credit balance evaluation."
+          runbook_url: "https://ops.apexsovereign.ai/runbooks/db-replication-lag"
+
+      # Rule 4: Atomic Ledger Debit Reconciliation Failure
+      - alert: ApexDoubleEntryConservationViolation
+        expr: apex_ledger_imbalance_cents > 0
+        for: 0s
+        labels:
+          severity: page
+          tier: finops
+          system: "supabase-atomic-ledger"
+        annotations:
+          summary: "CRITICAL: Conservation of credits violated in double-entry ledger"
+          description: "Ledger discrepancy detected: {{ $value }} units imbalance. Emergency transaction freeze initiated."
+          runbook_url: "https://ops.apexsovereign.ai/runbooks/ledger-reconciliation"
+
+  - name: apexsovereign_finops_and_margin_alerts
+    rules:
+      # Rule 5: Low Net Margin Anomaly (< 12% Threshold)
+      - alert: ApexComputeNetMarginDegraded
+        expr: apex_finops_node_net_margin_ratio * 100 < 12.0 and apex_finops_node_net_margin_ratio * 100 > 0.0
+        for: 1m
+        labels:
+          severity: warning
+          tier: finops
+          action: "blacklist_node"
+          system: "apexsovereign-finops-daemon"
+        annotations:
+          summary: "Node {{ $labels.node_id }} net margin dropped below 12% target"
+          description: "Node {{ $labels.node_id }} on {{ $labels.provider }} is yielding {{ $value | printf \"%.2f\" }}% margin. Automated router weight reduced to 0."
+          runbook_url: "https://ops.apexsovereign.ai/runbooks/spot-margin-degradation"
+
+      # Rule 6: Negative Margin Emergency Circuit Breaker (< 0%)
+      - alert: ApexComputeNegativeMarginEmergencyBreaker
+        expr: apex_finops_node_net_margin_ratio <= 0.0
+        for: 0s
+        labels:
+          severity: critical
+          tier: finops
+          action: "emergency_cluster_isolate"
+          system: "apexsovereign-finops-daemon"
+        annotations:
+          summary: "EMERGENCY: Negative margin detected on node {{ $labels.node_id }}"
+          description: "Spot cost exceeds client billing rate on node {{ $labels.node_id }} (Margin: {{ $value | printf \"%.2f\" }}%). Cluster isolated instantly."
+          runbook_url: "https://ops.apexsovereign.ai/runbooks/negative-margin-breaker"
+
+  - name: apexsovereign_dcgm_hardware_alerts
+    rules:
+      # Rule 7: GPU Thermal Throttling Alert (> 84°C / Throttling Flag)
+      - alert: ApexGpuThermalThrottling
+        expr: DCGM_FI_DEV_GPU_TEMP > 84.0 or DCGM_FI_DEV_CLOCK_THROTTLE_REASONS > 0
+        for: 15s
+        labels:
+          severity: warning
+          tier: hardware
+          system: "nvidia-dcgm"
+        annotations:
+          summary: "GPU {{ $labels.gpu }} on {{ $labels.instance }} is thermal throttling"
+          description: "Temperature reached {{ $value }}°C. Dynamic router penalizing node health score."
+
+      # Rule 8: vRAM Exhaustion Alert (> 95%)
+      - alert: ApexGpuVramExhaustionWarning
+        expr: (DCGM_FI_DEV_FB_USED / DCGM_FI_DEV_FB_TOTAL) * 100 > 95.0
+        for: 10s
+        labels:
+          severity: warning
+          tier: hardware
+          system: "nvidia-dcgm"
+        annotations:
+          summary: "GPU {{ $labels.gpu }} on {{ $labels.instance }} vRAM utilization > 95%"
+          description: "High risk of CUDA OOM on next batch allocation. Health score lowered."
+
+# ============================================================================
+# ALERTMANAGER CONFIGURATION & WEBHOOK DISPATCH DEFINITION
+# ============================================================================
+alertmanager_receivers:
+  - name: "apexsovereign-incident-webhook"
+    webhook_configs:
+      - url: "https://api.apexsovereign.ai/api/webhooks/incident-response"
+        send_resolved: true
+        http_config:
+          bearer_token: "${PROMETHEUS_ALERTMANAGER_SECRET}"
+          tls_config:
+            insecure_skip_verify: false
+        max_alerts: 25
+
+  - name: "apexsovereign-finops-automation"
+    webhook_configs:
+      - url: "http://sovereign-core-service.apex-system.svc.cluster.local:8080/api/v1/finops/circuit-breaker"
+        send_resolved: true
+        http_config:
+          bearer_token: "${FINOPS_INTERNAL_TOKEN}"

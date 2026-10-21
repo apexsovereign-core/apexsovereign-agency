@@ -1,0 +1,92 @@
+# ==============================================================================
+# APEXSOVEREIGN.AI — HIGH-PERFORMANCE EDGE PROXY & ACME TLS CADDYFILE
+# Automatic Zero-Config TLS (Let's Encrypt / ZeroSSL) for Porkbun DNS
+# ==============================================================================
+
+{
+    email ops@apexsovereign.ai
+    admin off
+    servers {
+        protocol {
+            experimental_http3
+        }
+    }
+}
+
+# Root Domain & WWW Forwarding (Porkbun DNS Target)
+apexsovereign.ai, www.apexsovereign.ai {
+    encode gzip zstd
+
+    # High-Security Enterprise Headers
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Content-Security-Policy "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob: ws: wss:; frame-ancestors *;"
+    }
+
+    # Proxy to Render Production Service Port / Internal Ingress
+    reverse_proxy 127.0.0.1:3000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+
+        transport http {
+            keepalive 30s
+            keepalive_idle_conns 100
+        }
+    }
+}
+
+# AethelMesh Sub-18ms Ingress API
+api.apexsovereign.ai {
+    encode gzip zstd
+
+    # Security Headers
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    # Proxy to FastAPI / Sentinel Service
+    reverse_proxy 127.0.0.1:8001 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+
+        transport http {
+            keepalive 30s
+            keepalive_idle_conns 100
+        }
+    }
+}
+
+# AethelPay Atomic Settlement & Webhook Gateway
+pay.apexsovereign.ai {
+    encode gzip zstd
+
+    # Security Headers
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+    }
+
+    # Proxy to PayPal Settlement Ingress
+    reverse_proxy 127.0.0.1:3000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+
+        transport http {
+            keepalive 30s
+            keepalive_idle_conns 50
+        }
+    }
+}

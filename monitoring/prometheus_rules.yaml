@@ -1,0 +1,117 @@
+# ==============================================================================
+# ApexSovereign.ai - Operational Command 07: Prometheus Alerting & Metric Rules
+# File: monitoring/prometheus_rules.yaml
+# Classification: SOC 2 Type II Day-2 Continuous Observability & SLA Sentinels
+# ==============================================================================
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: apexsovereign-prometheus-rules
+  namespace: apexsovereign-prod
+  labels:
+    role: alert-rules
+    prometheus: k8s
+    app.kubernetes.io/name: apexsovereign-monitoring
+spec:
+  groups:
+    - name: apexsovereign.sla.rules
+      interval: 15s
+      rules:
+        # ----------------------------------------------------------------------
+        # 1. API Latency SLA Breach (>500ms on Mission-Critical Endpoints)
+        # ----------------------------------------------------------------------
+        - alert: APILatencySLABreach
+          expr: |
+            histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{
+              path=~"/v1/concierge/triage|/v1/orchestration/eviction-notice|/v1/billing/.*"
+            }[1m])) by (le, path)) > 0.500
+          for: 30s
+          labels:
+            severity: critical
+            tier: enterprise-sla
+            component: api-gateway
+          annotations:
+            summary: "API Latency SLA Breach on {{ $labels.path }}"
+            description: "P99 latency on mission-critical route {{ $labels.path }} is {{ $value | humanizeDuration }} (threshold: 500ms). Risk of institutional SLA breach."
+            runbook_url: "https://docs.apexsovereign.ai/runbooks/latency-sla-breach"
+
+        # ----------------------------------------------------------------------
+        # 2. Sub-Second Failover Execution Failure (>1000ms Cutover Latency)
+        # ----------------------------------------------------------------------
+        - alert: SpotFailoverCutoverExceeded
+          expr: |
+            max_over_time(spot_cutover_latency_ms[1m]) > 1000.0
+          for: 10s
+          labels:
+            severity: page
+            tier: infrastructure-failover
+            component: ebpf-socket-router
+          annotations:
+            summary: "Spot Eviction Cutover Latency Exceeded 1000ms SLA"
+            description: "Spot node reclamation cutover executed in {{ $value }}ms, violating sub-second SLA guarantee. Automated $250 escrow compensation triggered."
+            runbook_url: "https://docs.apexsovereign.ai/runbooks/failover-cutover-exceeded"
+
+        # ----------------------------------------------------------------------
+        # 3. Bare-Metal Telemetry Stream Disconnect Spike (>5% Drops/Min)
+        # ----------------------------------------------------------------------
+        - alert: TelemetryStreamDegradation
+          expr: |
+            (rate(telemetry_websocket_disconnects_total[1m]) / clamp_min(rate(telemetry_websocket_connections_total[1m]), 1)) * 100 > 5.0
+          for: 1m
+          labels:
+            severity: warning
+            tier: telemetry
+            component: baremetal-ingest
+          annotations:
+            summary: "Telemetry WebSocket Connection Drops > 5%/min"
+            description: "Active high-frequency bare-metal telemetry drops is at {{ $value | printf \"%.2f\" }}%. Ingress proxy timeout or node agent degradation detected."
+            runbook_url: "https://docs.apexsovereign.ai/runbooks/telemetry-stream-degradation"
+
+        # ----------------------------------------------------------------------
+        # 4. Institutional SLA Escrow Reserve Drawdown (<$400,000 Liquid Pool)
+        # ----------------------------------------------------------------------
+        - alert: EscrowReservePoolDepletion
+          expr: |
+            sla_escrow_reserve_balance_usd < 400000.00
+          for: 15s
+          labels:
+            severity: critical
+            tier: financial-governance
+            component: treasury-sentinel
+          annotations:
+            summary: "SLA Escrow Reserve Pool Depleted Below $400,000.00 USD"
+            description: "Pre-funded liquidity reserve has dropped to ${{ $value | humanize1024 }} USD. Replenishment deposit required to maintain underwriting solvency."
+            runbook_url: "https://docs.apexsovereign.ai/runbooks/escrow-replenishment"
+
+        # ----------------------------------------------------------------------
+        # 5. eBPF Socket Map Capacity Saturation (>85% Utilized)
+        # ----------------------------------------------------------------------
+        - alert: EBPFSockmapCapacityHigh
+          expr: |
+            (ebpf_sockmap_entries_active / ebpf_sockmap_max_capacity) * 100 > 85.0
+          for: 1m
+          labels:
+            severity: warning
+            tier: kernel-networking
+            component: ebpf-controller
+          annotations:
+            summary: "eBPF sockmap Table Saturation > 85%"
+            description: "Active TCP sockmap hash table capacity is at {{ $value | printf \"%.2f\" }}%. Kernel memory exhaustion risk under sudden spot evacuation storm."
+            runbook_url: "https://docs.apexsovereign.ai/runbooks/ebpf-capacity"
+
+        # ----------------------------------------------------------------------
+        # 6. High Error Rate on Ingress HTTP 5xx (>1%)
+        # ----------------------------------------------------------------------
+        - alert: HighHTTP5xxErrorRate
+          expr: |
+            (sum(rate(nginx_ingress_controller_requests{status=~"5.*"}[1m])) / sum(rate(nginx_ingress_controller_requests[1m]))) * 100 > 1.0
+          for: 1m
+          labels:
+            severity: critical
+            tier: gateway
+            component: nginx-ingress
+          annotations:
+            summary: "Ingress HTTP 5xx Error Rate > 1%"
+            description: "Ingress controller 5xx error rate is currently at {{ $value | printf \"%.2f\" }}%."
+            runbook_url: "https://docs.apexsovereign.ai/runbooks/http-5xx-spike"

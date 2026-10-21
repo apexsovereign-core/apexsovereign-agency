@@ -1,0 +1,7 @@
+{
+  "name": "aethelpay-gateway",
+  "version": "1.0.0",
+  "description": "ApexSovereign Holdings Institutional Multi-Rail Gateway & Settlement Core",
+  "type": "commonjs",
+  "main": "institutional_clearing.js"
+}

@@ -1,0 +1,3597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#05070A">
+  <title>ApexSovereign.ai | Sovereign Compute Exchange</title>
+  <meta name="description" content="Sovereign AI GPU Compute Broker & Spot Arbitrage Exchange. Sub-18ms routing, atomic Supabase double-entry ledger ($1.00 = 100 CU).">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2L2 12L12 22L22 12L12 2Z' fill='%2300F0FF'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --void: #05070A;
+      --glass: rgba(10, 15, 25, 0.88);
+      --border: rgba(0, 240, 255, 0.25);
+      --cyan: #00F0FF;
+      --cyan-hover: #38BDF8;
+      --green: #10B981;
+      --text: #F8FAFC;
+      --text2: #94A3B8;
+      --muted: #475569;
+      --warn: #FFB020;
+      --bad: #FF4D6A;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --panel-pad: 1.5rem;
+      --panel-radius: 12px;
+    }
+    body.compact-density {
+      --panel-pad: 0.85rem;
+      font-size: 12px;
+    }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: var(--font-mono) !important;
+      font-variant-numeric: tabular-nums;
+    }
+    body {
+      background: var(--void);
+      background-image: radial-gradient(circle at 50% 0%, rgba(0, 240, 255, 0.05) 0%, transparent 60%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      line-height: 1.5;
+      font-size: 13px;
+    }
+    a { color: var(--cyan); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    button, input, select, textarea {
+      font-family: var(--font-mono);
+      font-size: 13px;
+    }
+    :focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 2px;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
+    }
+    body.force-reduced-motion *, body.force-reduced-motion *::before, body.force-reduced-motion *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+    .brand-logo-emblem {
+      filter: drop-shadow(0 0 16px rgba(0, 240, 255, 0.9));
+      width: 28px;
+      height: 28px;
+      display: block;
+      flex-shrink: 0;
+    }
+    .glass-panel {
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: var(--panel-radius);
+      padding: var(--panel-pad);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      animation: panelEntrance 180ms ease-out;
+    }
+    @keyframes panelEntrance {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .btn-primary {
+      background: var(--cyan);
+      color: var(--void);
+      font-weight: 700;
+      border-radius: 0.375rem;
+      padding: 0.5rem 1rem;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: var(--cyan-hover);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+    }
+    .btn-primary:disabled {
+      background: var(--muted);
+      color: var(--text2);
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    .btn-secondary {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border);
+      color: var(--cyan);
+      border-radius: 0.375rem;
+      padding: 0.4rem 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .btn-secondary:hover:not(:disabled) {
+      background: rgba(0, 240, 255, 0.15);
+      border-color: var(--cyan);
+    }
+    .btn-secondary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    header.master-header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: var(--glass);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+      padding: 0.75rem clamp(12px, 2vw, 28px);
+    }
+    .header-inner {
+      max-width: 1320px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+    }
+    .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: #FFFFFF;
+    }
+    .brand-title span { color: var(--cyan); }
+    .brand-tagline {
+      font-size: 10px;
+      color: var(--text2);
+      letter-spacing: 0.05em;
+    }
+    .chips-bar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    .status-chip {
+      background: rgba(5, 7, 10, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      color: var(--text2);
+      position: relative;
+    }
+    .status-chip strong { color: var(--text); }
+    .status-chip.interactive { cursor: pointer; }
+    .status-chip.interactive:hover { border-color: var(--cyan); }
+    .chip-green { color: var(--green) !important; }
+    .chip-cyan { color: var(--cyan) !important; }
+    .chip-warn { color: var(--warn) !important; }
+    .chip-bad { color: var(--bad) !important; }
+    .chip-grey { color: var(--text2) !important; }
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+    }
+    .nav-tabs {
+      display: flex;
+      gap: 0.35rem;
+      overflow-x: auto;
+      padding-top: 0.25rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .nav-tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text2);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 0.4rem 0.9rem;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .nav-tab-btn:hover { color: #FFFFFF; background: rgba(255, 255, 255, 0.04); }
+    .nav-tab-btn.active {
+      background: var(--cyan);
+      color: #000000;
+      font-weight: 700;
+      box-shadow: 0 10px 15px -3px rgba(6, 182, 212, 0.2);
+    }
+    .tab-badge {
+      background: #000000;
+      color: var(--cyan);
+      border-radius: 999px;
+      font-size: 10px;
+      padding: 0.1rem 0.4rem;
+      font-weight: 700;
+    }
+    .nav-tab-btn.active .tab-badge {
+      background: #000000;
+      color: #FFFFFF;
+    }
+    .unreachable-banner {
+      background: rgba(255, 176, 32, 0.15);
+      border: 1px solid var(--warn);
+      color: var(--warn);
+      padding: 0.5rem 1rem;
+      margin: 0.5rem auto;
+      max-width: 1320px;
+      width: calc(100% - 2rem);
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      font-size: 12px;
+    }
+    .unreachable-banner button {
+      background: transparent;
+      border: 1px solid var(--warn);
+      color: var(--warn);
+      padding: 0.15rem 0.4rem;
+      border-radius: 0.25rem;
+      cursor: pointer;
+    }
+    main.app-main {
+      flex: 1;
+      max-width: 1320px;
+      width: 100%;
+      margin: 1.5rem auto;
+      padding: 0 clamp(12px, 2vw, 28px);
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    .tab-content { display: none; }
+    .tab-content.active-panel { display: block; }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .panel-title {
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #CBD5E1;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .source-pill {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      cursor: help;
+      letter-spacing: 0.05em;
+    }
+    .source-pill.source-live {
+      background: rgba(0, 240, 255, 0.15);
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+    }
+    .source-pill.source-sim {
+      background: rgba(255, 176, 32, 0.15);
+      border: 1px solid var(--warn);
+      color: var(--warn);
+    }
+    .sim-mode-notice {
+      background: rgba(255, 176, 32, 0.1);
+      border: 1px dashed var(--warn);
+      color: var(--warn);
+      font-size: 12px;
+      padding: 0.4rem 0.75rem;
+      border-radius: 0.375rem;
+      margin-bottom: 0.75rem;
+    }
+    .market-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+    @media (max-width: 1024px) { .market-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .market-grid { grid-template-columns: 1fr; } }
+    .gpu-card {
+      background: rgba(10, 15, 25, 0.95);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      position: relative;
+      transition: border-color 0.2s, background 0.3s;
+    }
+    .gpu-card:hover { border-color: var(--cyan); }
+    .gpu-card.flash-down { background: rgba(0, 240, 255, 0.18); }
+    .gpu-card.flash-up { background: rgba(255, 176, 32, 0.18); }
+    .gpu-card-header { display: flex; align-items: flex-start; justify-content: space-between; }
+    .gpu-model { font-size: 14px; font-weight: 700; color: #FFFFFF; }
+    .gpu-interconnect { font-size: 11px; color: var(--text2); }
+    .savings-badge {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid var(--green);
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 0.15rem 0.4rem;
+      border-radius: 0.25rem;
+    }
+    .price-block { display: flex; flex-direction: column; gap: 0.15rem; }
+    .spot-price-usd { font-size: 22px; font-weight: 700; color: var(--cyan); }
+    .spot-price-cu { font-size: 12px; color: var(--text2); }
+    .baseline-price { font-size: 11px; color: var(--muted); text-decoration: line-through; }
+    .gpu-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text2);
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 0.5rem;
+    }
+    .sparkline-svg { width: 100%; height: 32px; }
+    .map-container {
+      position: relative;
+      width: 100%;
+      background: #020408;
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      overflow: hidden;
+      padding: 0.5rem;
+    }
+    .map-svg { width: 100%; height: auto; display: block; max-height: 440px; }
+    .map-node { cursor: pointer; }
+    .map-node:hover circle.core { r: 6; fill: var(--cyan); }
+    .map-tooltip {
+      position: absolute;
+      background: rgba(5, 7, 10, 0.95);
+      border: 1px solid var(--cyan);
+      border-radius: 0.375rem;
+      padding: 0.4rem 0.6rem;
+      font-size: 12px;
+      color: var(--text);
+      pointer-events: none;
+      display: none;
+      z-index: 20;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.8);
+      white-space: nowrap;
+    }
+    .audit-terminal {
+      background: #020408;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      font-size: 12px;
+      height: 250px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 0.25rem;
+    }
+    .log-row {
+      display: flex;
+      gap: 0.5rem;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .log-row.pinned-log { background: rgba(0, 240, 255, 0.08); border-left: 2px solid var(--cyan); padding-left: 4px; }
+    .log-ts { color: var(--muted); flex-shrink: 0; }
+    .log-level { font-weight: 700; flex-shrink: 0; }
+    .log-level.INFO { color: var(--cyan); }
+    .log-level.WARN { color: var(--warn); }
+    .log-level.ERROR { color: var(--bad); }
+    .log-msg { color: var(--text); flex: 1; }
+    .log-trace { color: var(--muted); font-size: 11px; cursor: pointer; }
+    .log-trace:hover { color: var(--cyan); text-decoration: underline; }
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 0.5rem;
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      text-align: left;
+    }
+    table.data-table th {
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text2);
+      padding: 0.6rem 0.8rem;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+    }
+    table.data-table td {
+      padding: 0.6rem 0.8rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      color: var(--text);
+    }
+    table.data-table tr:hover td { background: rgba(0, 240, 255, 0.03); }
+    .form-group { display: flex; flex-direction: column; gap: 0.35rem; }
+    .form-label { font-size: 11px; color: var(--text2); font-weight: 600; text-transform: uppercase; }
+    .form-input, .form-select, .form-textarea {
+      background: #020408;
+      border: 1px solid var(--border);
+      border-radius: 0.375rem;
+      color: var(--text);
+      padding: 0.5rem 0.75rem;
+      font-size: 13px;
+      width: 100%;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--cyan); }
+    .cards-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+    .metric-card {
+      background: rgba(10, 15, 25, 0.8);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .metric-label {
+      font-size: 11px;
+      color: var(--text2);
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .metric-value { font-size: 22px; font-weight: 700; color: var(--text); }
+    .metric-sub { font-size: 11px; color: var(--text2); }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 7, 10, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-backdrop.active-modal { display: flex; }
+    .modal-dialog {
+      background: #0A0F19;
+      border: 1px solid var(--cyan);
+      border-radius: 0.75rem;
+      max-width: 540px;
+      width: 100%;
+      padding: 1.5rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9);
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 0.5rem;
+    }
+    .modal-title { font-size: 14px; font-weight: 700; color: #FFFFFF; text-transform: uppercase; }
+    .modal-close-btn { background: transparent; border: none; color: var(--text2); font-size: 18px; cursor: pointer; }
+    .modal-close-btn:hover { color: #FFFFFF; }
+    #toast-shelf {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-width: 380px;
+      width: 100%;
+      pointer-events: none;
+    }
+    .toast-item {
+      background: rgba(10, 15, 25, 0.96);
+      border-left: 4px solid var(--cyan);
+      border-top: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      border-radius: 0.375rem;
+      padding: 0.75rem 1rem;
+      color: var(--text);
+      font-size: 12px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.6);
+      pointer-events: auto;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .toast-item.toast-error { border-left-color: var(--bad); }
+    .toast-item.toast-warn { border-left-color: var(--warn); }
+    .toast-item.toast-success { border-left-color: var(--green); }
+    .snippet-pre {
+      background: #020408;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      font-size: 12px;
+      overflow-x: auto;
+      line-height: 1.6;
+    }
+    .kw { color: #67E8F9; font-weight: 700; }
+    .str { color: #34D399; }
+    .num { color: #F59E0B; }
+    .comm { color: #64748B; font-style: italic; }
+    footer.app-footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 1.5rem 1rem;
+      text-align: center;
+      color: var(--text2);
+      font-size: 12px;
+      margin-top: auto;
+      background: rgba(5, 7, 10, 0.9);
+    }
+    .footer-content { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 0.4rem; }
+    /* Skeleton Shimmer */
+    .skeleton-box {
+      background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(0,240,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 0.375rem;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    /* 1600px 2-column Terminal layout */
+    .terminal-responsive-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    @media (min-width: 1600px) {
+      .terminal-responsive-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+      }
+    }
+    /* Status Popover */
+    .status-popover {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 0.5rem;
+      background: #0A0F19;
+      border: 1px solid var(--cyan);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      width: 280px;
+      z-index: 60;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+      display: none;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .status-popover.active { display: flex; }
+    /* Drawer */
+    .side-drawer {
+      position: fixed;
+      top: 0;
+      right: -360px;
+      width: 340px;
+      height: 100vh;
+      background: #070B14;
+      border-left: 1px solid var(--border);
+      z-index: 150;
+      padding: 1.5rem;
+      box-shadow: -10px 0 30px rgba(0,0,0,0.8);
+      transition: right 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      overflow-y: auto;
+    }
+    .side-drawer.drawer-open { right: 0; }
+    @media (max-width: 900px) {
+      .nav-tabs {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--void);
+        border-top: 1px solid var(--border);
+        padding: 0.5rem;
+        z-index: 60;
+        justify-content: space-around;
+      }
+      body { padding-bottom: 60px; }
+    }
+  </style>
+  <style id="apex-peak-production-overrides">
+    :root { --void:#06090d; --glass:rgba(10,17,24,.86); --border:rgba(137,169,192,.18); --cyan:#00e5ff; --cyan-hover:#65efff; --green:#44e0ad; --text:#f3f7fa; --text2:#8ea2b3; --muted:#5c7182; --warn:#f2b84b; --bad:#ff6b7a; --panel-radius:14px; }
+    body { background:radial-gradient(900px 420px at 72% -10%,rgba(0,229,255,.11),transparent 62%),radial-gradient(700px 380px at -8% 22%,rgba(68,224,173,.06),transparent 60%),var(--void); }
+    header.master-header { background:rgba(6,9,13,.88); border-bottom-color:var(--border); box-shadow:0 14px 55px rgba(0,0,0,.2); }
+    .header-inner { max-width:1480px; gap:.95rem; }
+    .brand-title { letter-spacing:.12em; font-size:16px; }
+    .brand-title span { color:var(--cyan); }
+    .brand-tagline { color:var(--muted); letter-spacing:.1em; }
+    .glass-panel { background:rgba(11,17,24,.78); border-color:var(--border); box-shadow:0 24px 70px rgba(0,0,0,.25); }
+    .btn-primary { background:var(--cyan); color:#031116; border-radius:9px; box-shadow:0 0 20px rgba(0,229,255,.1); }
+    .btn-primary:hover:not(:disabled) { background:var(--cyan-hover); box-shadow:0 0 26px rgba(0,229,255,.25); }
+    .btn-secondary { border-color:var(--border); border-radius:9px; }
+    .btn-secondary:hover:not(:disabled) { background:rgba(0,229,255,.1); border-color:rgba(0,229,255,.45); }
+    .nav-tab-btn.active { color:var(--cyan); background:linear-gradient(135deg,rgba(0,229,255,.13),rgba(0,229,255,.035)); border-color:rgba(0,229,255,.45); box-shadow:0 0 24px rgba(0,229,255,.08); }
+    .gpu-card { background:rgba(11,17,24,.72); border-color:var(--border); border-radius:12px; transition:180ms ease; }
+    .gpu-card:hover { border-color:rgba(0,229,255,.48); transform:translateY(-2px); box-shadow:0 12px 30px rgba(0,0,0,.25); }
+    .source-pill.source-sim { background:rgba(242,184,75,.1); border-color:rgba(242,184,75,.5); color:var(--warn); }
+    .sim-mode-notice { background:rgba(242,184,75,.07); border-color:rgba(242,184,75,.5); color:#ffd98b; }
+    .status-chip { border-color:var(--border); background:rgba(11,17,24,.68); }
+    .form-input,.form-select { border-color:var(--border); background:#0b1118; }
+    @media (max-width:720px) { .brand-tagline { display:none; } .header-inner { padding-inline:12px; } .chips-bar { gap:.35rem; } }
+  </style>
+</head>
+<body>
+
+  <!-- Sticky Master Glass Header -->
+  <header class="master-header">
+    <div class="header-inner">
+      <div class="header-top">
+        <a href="#/terminal" class="brand-wrap" aria-label="ApexSovereign.ai Home">
+          <svg class="brand-logo-emblem" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 2L2 12L12 22L22 12L12 2Z" fill="#00F0FF"/>
+          </svg>
+          <div>
+            <div class="brand-title">APEX<span>SOVEREIGN</span>.AI</div>
+            <div class="brand-tagline">SOVEREIGN COMPUTE ARBITRAGE &amp; SPOT EXCHANGE</div>
+          </div>
+        </a>
+
+        <!-- State-driven status chips -->
+        <div class="chips-bar" id="header-chips-bar">
+          <!-- Backend chip with status popover -->
+          <div class="status-chip interactive" id="chip-backend" tabindex="0" role="button" aria-haspopup="dialog" aria-expanded="false" title="Click to view detailed backend telemetry">
+            <span class="pulse-dot"></span>
+            <span>BACKEND:</span>
+            <strong id="val-backend">CHECKING</strong>
+
+            <div class="status-popover" id="backend-status-popover" role="dialog" aria-label="Backend Telemetry">
+              <div style="font-weight:700;color:#FFFFFF;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.25rem;">BACKEND TELEMETRY</div>
+              <div style="font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--text2);">Last Check:</span><span id="pop-last-check">--</span></div>
+              <div style="font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--text2);">Router Host:</span><span id="pop-router">--</span></div>
+              <div style="font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--text2);">Build &amp; Env:</span><span id="pop-build">--</span></div>
+              <div style="font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--text2);">Provider Mode:</span><span id="pop-provider-mode" style="color:var(--cyan);">simulated</span></div>
+              <div style="font-size:11px;color:var(--text2);margin-top:0.25rem;">Last 5 Latency Samples (RTT):</div>
+              <svg id="pop-latency-sparkline" style="width:100%;height:24px;" viewBox="0 0 100 24" preserveAspectRatio="none"></svg>
+              <div style="font-size:10px;border-top:1px solid rgba(255,255,255,0.08);padding-top:0.4rem;display:flex;flex-wrap:wrap;gap:0.3rem;" id="pop-domains-summary"></div>
+            </div>
+          </div>
+
+          <div class="status-chip" id="chip-version">
+            <span>VERSION:</span>
+            <strong id="val-version">v-- DEMO</strong>
+          </div>
+          <div class="status-chip" id="chip-latency" title="Sample tooltip">
+            <span>LATENCY:</span>
+            <strong id="val-latency">MEASURING</strong>
+            <span style="color:var(--muted);font-size:10px;">(&lt;18ms SLA)</span>
+          </div>
+          <div class="status-chip chip-green" id="chip-ingress" title="Vercel edge ingress status">
+            <span>INGRESS:</span>
+            <strong>SECURE</strong>
+          </div>
+          <div class="status-chip" id="chip-signing">
+            <span>LEDGER SIGNING:</span>
+            <strong id="val-signing">UNKNOWN</strong>
+          </div>
+          <div class="status-chip" id="chip-balance">
+            <span>BALANCE:</span>
+            <strong id="val-balance">◆ 0 CU · $0.00</strong>
+            <span id="badge-balance-sim" class="chip-warn" style="font-size:9px;display:none;">SIM</span>
+          </div>
+          <div class="status-chip" id="chip-router">
+            <span>ROUTER:</span>
+            <strong id="val-router">--</strong>
+          </div>
+
+          <!-- Authentication state trigger / email chip -->
+          <div id="auth-header-container" style="display:inline-flex;align-items:center;gap:0.4rem;">
+            <button type="button" class="btn-primary" id="btn-open-signin" style="padding:0.25rem 0.6rem;font-size:11px;">
+              SIGN IN
+            </button>
+            <div class="status-chip chip-cyan" id="chip-user-email" style="display:none;">
+              <span>OPERATOR:</span>
+              <strong id="val-user-email">--</strong>
+            </div>
+            <button type="button" class="btn-secondary" id="btn-sign-out" style="padding:0.25rem 0.5rem;font-size:11px;display:none;">
+              SIGN OUT
+            </button>
+          </div>
+
+          <!-- Quick Action Buttons: Notifications, Palette, Settings -->
+          <button type="button" class="btn-secondary" id="btn-open-palette" title="Command Palette (Ctrl+K)" style="padding:0.25rem 0.5rem;font-size:11px;">
+            <span>⌘K</span>
+          </button>
+          <button type="button" class="btn-secondary" id="btn-open-notifications" title="Notifications Center" style="padding:0.25rem 0.5rem;font-size:11px;position:relative;">
+            <span>🔔</span>
+            <span id="notif-badge" style="position:absolute;top:-4px;right:-4px;background:var(--cyan);color:#000;border-radius:999px;font-size:9px;padding:0 4px;font-weight:700;display:none;">0</span>
+          </button>
+          <button type="button" class="btn-secondary" id="btn-open-settings" title="Settings Drawer" style="padding:0.25rem 0.5rem;font-size:11px;">
+            <span>⚙</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Module Navigation Tabs -->
+      <nav class="nav-tabs" role="tablist" aria-label="Main Navigation">
+        <button class="nav-tab-btn active" role="tab" id="tab-terminal" aria-selected="true" aria-controls="panel-terminal" data-target="terminal">
+          1. TERMINAL
+        </button>
+        <button class="nav-tab-btn" role="tab" id="tab-clusters" aria-selected="false" aria-controls="panel-clusters" data-target="clusters">
+          2. CLUSTERS
+          <span class="tab-badge" id="badge-cluster-count" style="display:none;">0</span>
+        </button>
+        <button class="nav-tab-btn" role="tab" id="tab-billing" aria-selected="false" aria-controls="panel-billing" data-target="billing">
+          3. BILLING
+        </button>
+        <button class="nav-tab-btn" role="tab" id="tab-docs" aria-selected="false" aria-controls="panel-docs" data-target="docs">
+          4. DOCS / API
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Dismissible Unreachable Warning Banner -->
+  <div class="unreachable-banner" id="unreachable-banner" style="display:none;" role="alert">
+    <span>Backend unreachable. Showing demo data. No real balances, charges, or resources.</span>
+    <button type="button" id="btn-dismiss-unreachable" aria-label="Dismiss notice">DISMISS</button>
+  </div>
+
+  <!-- Main View Container -->
+  <main class="app-main">
+
+    <!-- ========================================================================= -->
+    <!-- MODULE 1: TERMINAL -->
+    <!-- ========================================================================= -->
+    <section class="tab-content active-panel" id="panel-terminal" role="tabpanel" aria-labelledby="tab-terminal">
+      <div class="terminal-responsive-grid">
+        
+        <!-- Left / Column A: Spot Arbitrage Matrix + Execution Audit -->
+        <div style="display:flex;flex-direction:column;gap:1.5rem;">
+          
+          <!-- Spot Matrix Panel -->
+          <div class="glass-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <span>GPU SPOT ARBITRAGE RATE MATRIX</span>
+                <span class="source-pill source-sim" id="source-market" title="Demo data: not a real price, balance, or verification result">SIMULATED</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;font-size:11px;">
+                <select id="select-matrix-sort" class="form-select" style="padding:0.2rem 0.5rem;width:auto;font-size:11px;">
+                  <option value="default">Sort: Default</option>
+                  <option value="savings-desc">Sort: Savings (High to Low)</option>
+                  <option value="price-asc">Sort: Price (Low to High)</option>
+                  <option value="avail-desc">Sort: Availability</option>
+                </select>
+                <button type="button" class="btn-secondary" id="btn-toggle-compare" style="padding:0.2rem 0.5rem;font-size:11px;">COMPARE</button>
+                <button type="button" class="btn-secondary" id="btn-toggle-market-pause" style="padding:0.2rem 0.5rem;font-size:11px;">PAUSE</button>
+              </div>
+            </div>
+
+            <div id="sim-notice-market" class="sim-mode-notice">
+              Notice: Market data running in REFERENCE mode. Rates are fixed catalog baselines until a verified supplier feed is connected.
+            </div>
+
+            <!-- Compare Mode Card (Hidden by default) -->
+            <div id="compare-mode-container" style="display:none;margin-bottom:1rem;background:#020408;border:1px solid var(--cyan);border-radius:0.5rem;padding:1rem;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+                <span style="font-weight:700;color:var(--cyan);font-size:12px;">GPU COMPARISON OVERLAY</span>
+                <span style="font-size:11px;color:var(--text2);">Select any 2 GPUs from cards below</span>
+              </div>
+              <div id="compare-cards-diff" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;font-size:12px;"></div>
+            </div>
+
+            <div class="market-grid" id="market-cards-grid">
+              <!-- Dynamically populated 4 GPU Rate Cards -->
+            </div>
+            <div style="margin-top:0.75rem;display:flex;justify-content:space-between;font-size:11px;color:var(--text2);">
+              <span>Last market tick: <strong id="val-market-tick" style="color:var(--text);">--</strong></span>
+              <span>Updated every 2s</span>
+            </div>
+          </div>
+
+          <!-- Execution Audit Stream -->
+          <div class="glass-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <span>EXECUTION AUDIT LOG STREAM</span>
+                <span class="source-pill source-sim" id="source-audit" title="Demo data: not a real price, balance, or verification result">SIMULATED</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;">
+                <input type="text" id="input-audit-search" placeholder="Search logs..." class="form-input" style="width:130px;padding:0.2rem 0.4rem;font-size:11px;">
+                <div style="display:flex;gap:0.2rem;" id="audit-filters">
+                  <button type="button" class="btn-secondary" data-filter="ALL" style="padding:0.2rem 0.4rem;font-size:10px;">ALL</button>
+                  <button type="button" class="btn-secondary" data-filter="PROVISION" style="padding:0.2rem 0.4rem;font-size:10px;">PROV</button>
+                  <button type="button" class="btn-secondary" data-filter="RELEASE" style="padding:0.2rem 0.4rem;font-size:10px;">REL</button>
+                  <button type="button" class="btn-secondary" data-filter="LEDGER" style="padding:0.2rem 0.4rem;font-size:10px;">LEDGER</button>
+                  <button type="button" class="btn-secondary" data-filter="ERROR" style="padding:0.2rem 0.4rem;font-size:10px;">ERR</button>
+                </div>
+                <button type="button" class="btn-secondary" id="btn-pause-audit" style="padding:0.2rem 0.4rem;font-size:10px;">PAUSE</button>
+                <button type="button" class="btn-secondary" id="btn-download-audit" style="padding:0.2rem 0.4rem;font-size:10px;">.LOG</button>
+              </div>
+            </div>
+
+            <!-- Severity Legend -->
+            <div style="display:flex;gap:1rem;font-size:10px;margin-bottom:0.5rem;color:var(--text2);">
+              <span><strong style="color:var(--cyan);">● INFO:</strong> Routine telemetry</span>
+              <span><strong style="color:var(--warn);">▲ WARN:</strong> SLA &amp; utilization</span>
+              <span><strong style="color:var(--bad);">✕ ERROR:</strong> Fault isolation</span>
+              <span style="margin-left:auto;color:var(--muted);">Click trace ID to copy</span>
+            </div>
+
+            <div class="audit-terminal" id="audit-terminal-screen" aria-live="polite">
+              <!-- Log rows rendered bottom-up -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right / Column B: World Dot-Matrix Map -->
+        <div style="display:flex;flex-direction:column;gap:1.5rem;">
+          <div class="glass-panel" style="height:100%;display:flex;flex-direction:column;">
+            <div class="panel-header">
+              <div class="panel-title">
+                <span>GLOBAL NODE MESH TOPOLOGY (14 REGIONS)</span>
+                <span class="source-pill source-sim" id="source-mesh" title="Demo data: not a real price, balance, or verification result">SIMULATED</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:0.5rem;">
+                <span class="status-chip" id="chip-selected-region" style="font-size:11px;">SELECTED: <strong>Ashburn (US-EAST)</strong></span>
+              </div>
+            </div>
+
+            <!-- Map Legend -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;font-size:11px;color:var(--text2);flex-wrap:wrap;gap:0.5rem;">
+              <div style="display:flex;gap:0.75rem;">
+                <span><span style="color:var(--green);">●</span> Healthy</span>
+                <span><span style="color:var(--warn);">●</span> Degraded</span>
+                <span><span style="color:var(--bad);">●</span> Down</span>
+                <span><span style="color:var(--cyan);">---</span> WireGuard Mesh</span>
+              </div>
+              <span id="map-mode-label" style="color:var(--warn);font-size:10px;">[DEMO TOPOLOGY]</span>
+            </div>
+
+            <div class="map-container" style="flex:1;min-height:380px;">
+              <div class="map-tooltip" id="map-tooltip"></div>
+              <svg class="map-svg" viewBox="0 0 840 420" preserveAspectRatio="xMidYMid meet" id="mesh-map-svg" aria-label="Global node mesh map"></svg>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- MODULE 2: CLUSTERS -->
+    <!-- ========================================================================= -->
+    <section class="tab-content" id="panel-clusters" role="tabpanel" aria-labelledby="tab-clusters">
+      <!-- Allocator Form -->
+      <div class="glass-panel" style="margin-bottom:1.5rem;">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>SOVEREIGN CAPACITY ALLOCATOR</span>
+            <span class="source-pill source-sim" id="source-allocator" title="Demo data: not a real price, balance, or verification result">SIMULATED</span>
+          </div>
+          <button type="button" class="btn-secondary" id="btn-open-ssh-modal">+ MANAGE SSH KEYS</button>
+        </div>
+
+        <div id="sim-notice-clusters" class="sim-mode-notice">
+          Demo mode: no real resources or charges will be committed.
+        </div>
+
+        <form id="form-allocator" style="display:flex;flex-direction:column;gap:1rem;">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:1rem;">
+            <div class="form-group">
+              <label class="form-label" for="alloc-model">GPU Model</label>
+              <select class="form-select" id="alloc-model">
+                <option value="H100 SXM5" data-cu="194" data-baseline="3.23">H100 SXM5 · 194 CU/hr ($1.94)</option>
+                <option value="B200 NVL72" data-cu="285" data-baseline="4.60">B200 NVL72 · 285 CU/hr ($2.85)</option>
+                <option value="A100 SXM4" data-cu="142" data-baseline="2.18">A100 SXM4 · 142 CU/hr ($1.42)</option>
+                <option value="L40S PCIe" data-cu="89" data-baseline="1.31">L40S PCIe · 89 CU/hr ($0.89)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="alloc-region">Mesh Region</label>
+              <select class="form-select" id="alloc-region">
+                <option value="us-ashburn">Ashburn (US-EAST-1) · 11.4ms</option>
+                <option value="us-dallas">Dallas (US-CENTRAL) · 12.8ms</option>
+                <option value="us-portland">Portland (US-WEST-2) · 13.6ms</option>
+                <option value="eu-frankfurt">Frankfurt (EU-CENTRAL-1) · 14.8ms</option>
+                <option value="eu-dublin">Dublin (EU-WEST-1) · 15.2ms</option>
+                <option value="eu-stockholm">Stockholm (EU-NORTH-1) · 16.1ms</option>
+                <option value="ap-singapore">Singapore (AP-SOUTHEAST-1) · 17.2ms</option>
+                <option value="ap-tokyo">Tokyo (AP-NORTHEAST-1) · 16.8ms</option>
+                <option value="ap-mumbai">Mumbai (AP-SOUTH-1) · 18.0ms</option>
+                <option value="ap-seoul">Seoul (AP-NORTHEAST-2) · 16.5ms</option>
+                <option value="ap-sydney">Sydney (AP-SOUTHEAST-2) · 19.4ms</option>
+                <option value="sa-saopaulo">São Paulo (SA-EAST-1) · 21.0ms</option>
+                <option value="af-johannesburg">Johannesburg (AF-SOUTH-1) · 24.2ms</option>
+                <option value="me-dubai">Dubai (ME-CENTRAL-1) · 17.9ms</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="alloc-term">Commitment Term</label>
+              <select class="form-select" id="alloc-term">
+                <option value="on-demand" data-discount="0">On-demand (Hourly spot)</option>
+                <option value="reserved-24h" data-discount="0.05">Reserved 24h (-5% discount)</option>
+                <option value="reserved-7d" data-discount="0.10">Reserved 7d (-10% discount)</option>
+                <option value="reserved-30d" data-discount="0.15">Reserved 30d (-15% discount)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="alloc-ssh-key">Injected SSH Key</label>
+              <select class="form-select" id="alloc-ssh-key">
+                <option value="">(None - select or add key)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Node count slider synced with numeric input -->
+          <div class="form-group" style="background:#020408;padding:1rem;border-radius:0.5rem;border:1px solid rgba(255,255,255,0.06);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+              <label class="form-label" for="alloc-node-slider">Node Allocation (8 GPUs per node)</label>
+              <div style="display:flex;align-items:center;gap:0.5rem;">
+                <input type="number" id="alloc-node-num" min="1" max="64" value="4" class="form-input" style="width:70px;text-align:right;">
+                <span style="color:var(--text2);font-size:12px;">Nodes (<span id="alloc-accel-count" style="color:var(--cyan);font-weight:700;">32</span> Accelerators)</span>
+              </div>
+            </div>
+            <input type="range" id="alloc-node-slider" min="1" max="64" value="4" style="width:100%;accent-color:var(--cyan);">
+          </div>
+
+          <!-- Jurisdiction toggle & select -->
+          <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:0.5rem;font-size:12px;cursor:pointer;">
+              <input type="checkbox" id="alloc-pin-jurisdiction" style="accent-color:var(--cyan);">
+              <span>Pin to sovereign jurisdiction</span>
+            </label>
+            <div id="jurisdiction-select-wrap" style="display:none;">
+              <select class="form-select" id="alloc-jurisdiction-val" style="width:auto;display:inline-block;">
+                <option value="US">US · United States Sovereign Shield</option>
+                <option value="EU">EU · European Union GDPR Dedicated</option>
+                <option value="UK">UK · United Kingdom Crown Cloud</option>
+                <option value="IN">IN · India Data Protection Act</option>
+                <option value="SG">SG · Singapore Personal Data Protection</option>
+                <option value="JP">JP · Japan APPI Compliant</option>
+                <option value="AU">AU · Australia Privacy Act</option>
+                <option value="BR">BR · Brazil LGPD Bound</option>
+                <option value="ZA">ZA · South Africa POPIA</option>
+                <option value="AE">AE · United Arab Emirates Cyber Vault</option>
+                <option value="KR">KR · South Korea PIPA</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Real-Time Cost Estimator -->
+          <div style="background:rgba(0, 240, 255, 0.05);border:1px solid var(--border);border-radius:0.5rem;padding:1rem;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:1rem;">
+            <div>
+              <div style="font-size:10px;color:var(--text2);text-transform:uppercase;">Estimated Rate</div>
+              <div style="font-size:18px;font-weight:700;color:var(--cyan);" id="alloc-calc-rate">776 CU/hr ($7.76/hr)</div>
+              <div style="font-size:10px;color:var(--muted);" id="alloc-calc-baseline">Ref baseline: $12.92/hr · 40% savings</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--text2);text-transform:uppercase;">Projected 24h Cost</div>
+              <div style="font-size:16px;font-weight:700;color:#FFFFFF;" id="alloc-calc-24h">18,624 CU ($186.24)</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--text2);text-transform:uppercase;">Available Balance</div>
+              <div style="font-size:14px;color:var(--text);" id="alloc-calc-avail">245,800 CU</div>
+            </div>
+            <button type="submit" class="btn-primary" id="btn-submit-provision" style="min-width:180px;">
+              PROVISION CLUSTER
+            </button>
+          </div>
+          <div id="alloc-error-msg" style="color:var(--bad);font-size:12px;display:none;"></div>
+        </form>
+      </div>
+
+      <!-- Cost Calculator Widget ("What would this job cost?") -->
+      <div class="glass-panel" style="margin-bottom:1.5rem;">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>JOB COST CALCULATOR ESTIMATOR</span>
+          </div>
+          <span style="font-size:11px;color:var(--text2);">Estimated from current exchange rates</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:1rem;align-items:flex-end;">
+          <div class="form-group">
+            <label class="form-label" for="calc-widget-model">GPU Model</label>
+            <select class="form-select" id="calc-widget-model">
+              <option value="H100 SXM5" data-cu="194" data-baseline="3.23">H100 SXM5 (194 CU/hr)</option>
+              <option value="B200 NVL72" data-cu="285" data-baseline="4.60">B200 NVL72 (285 CU/hr)</option>
+              <option value="A100 SXM4" data-cu="142" data-baseline="2.18">A100 SXM4 (142 CU/hr)</option>
+              <option value="L40S PCIe" data-cu="89" data-baseline="1.31">L40S PCIe (89 CU/hr)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="calc-widget-gpus">GPU Accelerators</label>
+            <input type="number" id="calc-widget-gpus" class="form-input" min="1" max="512" value="32">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="calc-widget-hours">Runtime Hours</label>
+            <input type="number" id="calc-widget-hours" class="form-input" min="1" max="720" value="24">
+          </div>
+          <div style="background:#020408;padding:0.75rem;border-radius:0.375rem;border:1px solid rgba(255,255,255,0.1);">
+            <div style="font-size:10px;color:var(--text2);">PROJECTED TOTAL</div>
+            <div style="font-size:16px;font-weight:700;color:var(--cyan);" id="calc-widget-output">148,992 CU ($1,489.92)</div>
+            <div style="font-size:10px;color:var(--green);" id="calc-widget-savings">Saves $994.08 vs Baseline</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Clusters Table -->
+      <div class="glass-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>ACTIVE CAPACITY CLUSTERS</span>
+            <span class="source-pill source-sim" id="source-clusters" title="Demo data: not a real price, balance, or verification result">SIMULATED</span>
+          </div>
+          <span style="font-size:11px;color:var(--text2);">Auto-refreshes every 5s</span>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table" id="table-clusters">
+            <thead>
+              <tr>
+                <th>Cluster ID</th>
+                <th>Model x Nodes</th>
+                <th>Region</th>
+                <th>Status</th>
+                <th>Latency</th>
+                <th>Node Health</th>
+                <th>Uptime</th>
+                <th>Burn (CU/hr)</th>
+                <th>Accrued (CU)</th>
+                <th>SSH Connection</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-clusters">
+              <!-- Cluster rows or empty/error state -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- MODULE 3: BILLING -->
+    <!-- ========================================================================= -->
+    <section class="tab-content" id="panel-billing" role="tabpanel" aria-labelledby="tab-billing">
+      <div class="cards-row" style="margin-bottom:1.5rem;">
+        <div class="metric-card">
+          <div class="metric-label">
+            <span>AVAILABLE LIQUID BALANCE</span>
+            <span id="tag-balance-source" style="font-size:9px;color:var(--warn);">DEMO DATA</span>
+          </div>
+          <div class="metric-value live-animate" id="card-val-balance-cu">0 CU</div>
+          <div class="metric-sub" id="card-val-balance-usd">≈ $0.00 USD <span style="color:var(--muted);">($1.00 = 100 CU)</span></div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-label">
+            <span>ESCROWED RUNTIME CAPACITY</span>
+            <span id="tag-escrow-source" style="font-size:9px;color:var(--warn);">DEMO DATA</span>
+          </div>
+          <div class="metric-value live-animate" id="card-val-escrow-cu" style="color:var(--green);">0 CU</div>
+          <div class="metric-sub" id="card-val-escrow-sub">≈ $0.00 USD (0 active clusters)</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-label">
+            <span>MTD ARBITRAGE SAVINGS</span>
+            <span id="tag-savings-source" style="font-size:9px;color:var(--warn);">DEMO DATA</span>
+          </div>
+          <div class="metric-value live-animate" id="card-val-savings" style="color:var(--cyan);">$0.00</div>
+          <div class="metric-sub">vs reference on-demand hyperscaler baseline</div>
+        </div>
+
+        <!-- 4th Card: RLS Status -->
+        <div class="metric-card">
+          <div class="metric-label">
+            <span>DATABASE RLS STATUS</span>
+            <span id="tag-rls-source" style="font-size:9px;color:var(--text2);">CHECKING</span>
+          </div>
+          <div class="metric-value" id="card-val-rls" style="font-size:16px;">UNKNOWN</div>
+          <div class="metric-sub" id="card-val-rls-tables" style="font-size:10px;">--</div>
+        </div>
+      </div>
+
+      <!-- Instant PayPal Deposit Packs -->
+      <div class="glass-panel" style="margin-bottom:1.5rem;">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>INSTANT COMPUTE UNIT (CU) DEPOSIT PACKS</span>
+            <span id="badge-paypal-sandbox" class="savings-badge" style="background:rgba(255,176,32,0.2);border-color:var(--warn);color:var(--warn);font-size:10px;display:none;">SANDBOX</span>
+            <span class="source-pill source-sim" id="source-billing-packs" title="Demo data: not a real price, balance, or verification result">SIMULATED</span>
+          </div>
+          <div style="font-size:11px;display:flex;align-items:center;gap:0.5rem;" id="webhook-status-pill">
+            <span>PAYPAL WEBHOOK:</span>
+            <strong id="val-webhook-status" class="chip-warn">UNKNOWN</strong>
+          </div>
+        </div>
+
+        <div id="payments-disabled-banner" style="display:none;background:rgba(255,176,32,0.1);border:1px solid var(--warn);border-radius:0.375rem;padding:0.5rem 0.75rem;color:var(--warn);font-size:12px;margin-bottom:1rem;">
+          Payments are disabled in demo mode.
+        </div>
+
+        <p style="font-size:12px;color:var(--text2);margin-bottom:1rem;">
+          Settlement via PayPal webhook (<code style="color:var(--cyan);">/v1/webhooks/paypal</code>) and Supabase double-entry write. PayPal webhooks are verified server-side with PayPal's webhook signature verification before any ledger write.
+        </p>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:1rem;">
+          <!-- Pack $50 -->
+          <div class="metric-card" style="position:relative;">
+            <div style="font-size:11px;color:var(--text2);">DEVELOPER TIER</div>
+            <div style="font-size:24px;font-weight:700;color:#FFFFFF;margin-top:0.25rem;">$50.00 <span style="font-size:12px;color:var(--text2);">USD</span></div>
+            <div style="font-size:13px;font-weight:700;color:var(--cyan);">+5,000 Compute Units</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:0.5rem;">50 hrs L40S or single A100 test runs</div>
+            <button type="button" class="btn-primary btn-pack-deposit" data-pack="developer" data-usd="50" data-cu="5000" style="margin-top:1rem;width:100%;">
+              DEPOSIT 5,000 CU
+            </button>
+          </div>
+
+          <!-- Pack $100 -->
+          <div class="metric-card" style="position:relative;">
+            <div style="font-size:11px;color:var(--text2);">PROTOTYPE TIER</div>
+            <div style="font-size:24px;font-weight:700;color:#FFFFFF;margin-top:0.25rem;">$100.00 <span style="font-size:12px;color:var(--text2);">USD</span></div>
+            <div style="font-size:13px;font-weight:700;color:var(--cyan);">+10,000 Compute Units</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:0.5rem;">51 hrs continuous H100 SXM5 inference</div>
+            <button type="button" class="btn-primary btn-pack-deposit" data-pack="prototype" data-usd="100" data-cu="10000" style="margin-top:1rem;width:100%;">
+              DEPOSIT 10,000 CU
+            </button>
+          </div>
+
+          <!-- Pack $500 (RECOMMENDED) -->
+          <div class="metric-card" style="position:relative;border-color:var(--cyan);box-shadow:0 0 20px rgba(0,240,255,0.15);">
+            <span style="position:absolute;top:-10px;right:1rem;background:var(--cyan);color:#000;font-size:9px;font-weight:700;padding:0.1rem 0.5rem;border-radius:0.25rem;">RECOMMENDED</span>
+            <div style="font-size:11px;color:var(--cyan);">ENTERPRISE CLUSTER</div>
+            <div style="font-size:24px;font-weight:700;color:#FFFFFF;margin-top:0.25rem;">$500.00 <span style="font-size:12px;color:var(--text2);">USD</span></div>
+            <div style="font-size:13px;font-weight:700;color:var(--cyan);">+50,000 Compute Units</div>
+            <div style="font-size:10px;color:var(--text2);margin-top:0.5rem;">Multi-node InfiniBand cluster training runs</div>
+            <button type="button" class="btn-primary btn-pack-deposit" data-pack="enterprise" data-usd="500" data-cu="50000" style="margin-top:1rem;width:100%;">
+              DEPOSIT 50,000 CU
+            </button>
+          </div>
+
+          <!-- Pack $1000 -->
+          <div class="metric-card" style="position:relative;">
+            <div style="font-size:11px;color:var(--text2);">SOVEREIGN SCALE</div>
+            <div style="font-size:24px;font-weight:700;color:#FFFFFF;margin-top:0.25rem;">$1,000.00 <span style="font-size:12px;color:var(--text2);">USD</span></div>
+            <div style="font-size:13px;font-weight:700;color:var(--cyan);">+100,000 Compute Units</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:0.5rem;">Priority pod queue allocation across all nodes</div>
+            <button type="button" class="btn-primary btn-pack-deposit" data-pack="sovereign" data-usd="1000" data-cu="100000" style="margin-top:1rem;width:100%;">
+              DEPOSIT 100,000 CU
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Atomic Double-Entry Ledger Table -->
+      <div class="glass-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>DOUBLE-ENTRY ATOMIC TRANSACTION LEDGER</span>
+            <span class="source-pill source-sim" id="source-ledger" title="Demo data: not a real price, balance, or verification result">SIMULATED</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+            <div style="display:flex;gap:0.25rem;" id="ledger-filters">
+              <button type="button" class="btn-secondary" data-filter="ALL" style="padding:0.2rem 0.4rem;font-size:10px;">ALL</button>
+              <button type="button" class="btn-secondary" data-filter="TOPUP" style="padding:0.2rem 0.4rem;font-size:10px;">TOPUP</button>
+              <button type="button" class="btn-secondary" data-filter="PROVISION" style="padding:0.2rem 0.4rem;font-size:10px;">PROV</button>
+              <button type="button" class="btn-secondary" data-filter="RELEASE" style="padding:0.2rem 0.4rem;font-size:10px;">REL</button>
+              <button type="button" class="btn-secondary" data-filter="REFUND" style="padding:0.2rem 0.4rem;font-size:10px;">REFUND</button>
+            </div>
+            <button type="button" class="btn-secondary" id="btn-export-ledger-csv" style="padding:0.2rem 0.5rem;font-size:11px;">EXPORT CSV</button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table" id="table-ledger">
+            <thead>
+              <tr>
+                <th>Entry ID</th>
+                <th>Timestamp</th>
+                <th>Type</th>
+                <th>Debit</th>
+                <th>Credit</th>
+                <th>Amount (CU)</th>
+                <th>USD Value</th>
+                <th>Settlement Ref</th>
+                <th>Balance (CU)</th>
+                <th>Signature Badge</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-ledger">
+              <!-- Dynamically populated ledger entries -->
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:1rem;display:flex;justify-content:center;">
+          <button type="button" class="btn-secondary" id="btn-load-more-ledger">LOAD MORE ENTRIES</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- MODULE 4: DOCS / API -->
+    <!-- ========================================================================= -->
+    <section class="tab-content" id="panel-docs" role="tabpanel" aria-labelledby="tab-docs">
+      <!-- Interactive API Key Generator -->
+      <div class="glass-panel" style="margin-bottom:1.5rem;">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>INTERACTIVE API CREDENTIAL MANAGER</span>
+            <span class="source-pill source-sim" id="source-keys" title="Demo data: not a real price, balance, or verification result">SIMULATED</span>
+          </div>
+        </div>
+
+        <div id="sim-notice-keys" class="sim-mode-notice">
+          Notice: API key generation operating in SIMULATED mode. Generated keys will have prefix `apx_demo_` and are kept strictly in memory.
+        </div>
+
+        <div style="display:flex;gap:0.75rem;align-items:flex-end;margin-bottom:1rem;flex-wrap:wrap;">
+          <div class="form-group" style="flex:1;min-width:200px;">
+            <label class="form-label" for="input-key-label">Key Label</label>
+            <input type="text" id="input-key-label" class="form-input" placeholder="e.g. production-slurm-cluster-agent" value="primary-orchestration-token">
+          </div>
+          <button type="button" class="btn-primary" id="btn-generate-key">GENERATE API KEY</button>
+        </div>
+
+        <!-- Secret Revelation Banner (Shown ONCE) -->
+        <div id="secret-reveal-box" style="display:none;background:#020408;border:1px solid var(--cyan);border-radius:0.5rem;padding:1rem;margin-bottom:1rem;">
+          <div style="font-size:12px;color:var(--warn);font-weight:700;margin-bottom:0.25rem;">⚠️ SHOWN ONLY ONCE. STORE IT NOW.</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:0.5rem;">This secret key will never be visible again after this session. It is stored exclusively in client memory.</div>
+          <div style="display:flex;gap:0.5rem;align-items:center;">
+            <input type="text" id="revealed-secret-val" readonly class="form-input" style="color:var(--cyan);font-weight:700;background:rgba(0,240,255,0.06);">
+            <button type="button" class="btn-secondary" id="btn-copy-secret">COPY</button>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
+          <input type="checkbox" id="check-use-key-in-examples" style="accent-color:var(--cyan);" checked>
+          <label for="check-use-key-in-examples" style="font-size:12px;color:var(--text2);cursor:pointer;">Inject active key into code examples below</label>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table" id="table-keys">
+            <thead>
+              <tr>
+                <th>Key ID</th>
+                <th>Label</th>
+                <th>Masked Secret</th>
+                <th>Created</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-keys"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Multi-Language Code Snippets (curl, Python, Node.js, Go) -->
+      <div class="glass-panel" style="margin-bottom:1.5rem;">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>LOW-LATENCY EDGE INTEGRATION SNIPPETS</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.5rem;">
+            <div style="display:flex;gap:0.25rem;" id="snippet-lang-tabs">
+              <button type="button" class="btn-secondary" data-lang="curl" style="padding:0.2rem 0.5rem;font-size:11px;">cURL</button>
+              <button type="button" class="btn-secondary" data-lang="python" style="padding:0.2rem 0.5rem;font-size:11px;">Python</button>
+              <button type="button" class="btn-secondary" data-lang="node" style="padding:0.2rem 0.5rem;font-size:11px;">Node.js</button>
+              <button type="button" class="btn-secondary" data-lang="rust" style="padding:0.2rem 0.5rem;font-size:11px;">Rust/Axum</button>
+            </div>
+            <button type="button" class="btn-primary" id="btn-copy-snippet" style="padding:0.2rem 0.6rem;font-size:11px;">COPY CODE</button>
+          </div>
+        </div>
+
+        <pre class="snippet-pre" id="snippet-code-display"><code>Loading snippet...</code></pre>
+      </div>
+
+      <!-- "Try It" Request Builder Panel -->
+      <div class="glass-panel" style="margin-bottom:1.5rem;">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>TRY IT: ATOMIC CLUSTER PROVISIONING ENDPOINT</span>
+          </div>
+          <span style="font-size:11px;color:var(--text2);">POST /v1/clusters/provision</span>
+        </div>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:1rem;">
+          Issue live provisioning requests directly from the browser. In SIMULATED mode, requests are disabled to protect test environments.
+        </p>
+        <div style="display:flex;gap:1rem;flex-direction:column;">
+          <textarea id="tryit-request-body" rows="6" class="form-textarea" style="font-size:12px;"></textarea>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <button type="button" class="btn-primary" id="btn-tryit-send" disabled title="Demo mode: no real requests">
+              SEND REQUEST
+            </button>
+            <span id="tryit-status-info" style="font-size:11px;color:var(--warn);">SIMULATED mode: Try-It disabled</span>
+          </div>
+          <div id="tryit-response-box" style="display:none;background:#020408;border:1px solid var(--border);border-radius:0.375rem;padding:0.75rem;">
+            <div style="font-weight:700;color:var(--cyan);font-size:11px;margin-bottom:0.25rem;" id="tryit-resp-status"></div>
+            <pre style="font-size:11px;color:var(--text);overflow-x:auto;" id="tryit-resp-body"></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- PayPal Webhook Technical Architecture Section -->
+      <div class="glass-panel" style="margin-bottom:1.5rem;">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>PAYPAL WEBHOOK ARCHITECTURE &amp; IDEMPOTENCY</span>
+          </div>
+          <span style="font-size:11px;color:var(--cyan);">POST /v1/webhooks/paypal</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.6;display:flex;flex-direction:column;gap:0.75rem;">
+          <p>
+            <strong>Cryptographic Verification:</strong> PayPal webhooks targeting <code>/v1/webhooks/paypal</code> are verified server-side using PayPal's native Webhook Signature Verification API (<code>PAYPAL-TRANSMISSION-SIG</code>, <code>PAYPAL-AUTH-ALGO</code>, and certificate chain validation). Webhooks never use generic HMAC secrets in client storage.
+          </p>
+          <p>
+            <strong>Idempotency Guarantees:</strong> Every captured transaction ID is stored in Supabase with a unique index constraint. Duplicate webhook deliveries automatically resolve to <code>HTTP 200 OK</code> without duplicate credit mutations.
+          </p>
+          <p>
+            <strong>Retry &amp; Backoff Semantics:</strong> Transient database deadlocks trigger exponential retry intervals up to 5 attempts before parking in the dead-letter quarantine queue.
+          </p>
+        </div>
+      </div>
+
+      <!-- Complete 18-Endpoint Specification Table -->
+      <div class="glass-panel" style="margin-bottom:1.5rem;">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>SOVEREIGN API CONTRACT SPECIFICATION (18 ENDPOINTS)</span>
+          </div>
+          <span style="font-size:11px;color:var(--text2);">&lt;18ms round-trip latency SLA target (target only, not an SLA warranty)</span>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table" id="table-api-ref">
+            <thead>
+              <tr>
+                <th>Method</th>
+                <th>Path</th>
+                <th>Auth</th>
+                <th>Description &amp; Expected Fields</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-api-ref"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Changelog Collapsible -->
+      <div class="glass-panel">
+        <details>
+          <summary style="font-weight:700;color:#FFFFFF;cursor:pointer;font-size:13px;">CHANGELOG &amp; MESH RELEASE HISTORY</summary>
+          <div style="margin-top:1rem;font-size:12px;color:var(--text2);display:flex;flex-direction:column;gap:0.75rem;">
+            <div><strong style="color:var(--cyan);">v2.4.8 (Current)</strong>: Trustworthy health probe checking status=ok + JSON content-type; 120x60 dot-matrix world map with RLE decoding; Ctrl+K command palette, Go SDK, compare mode.</div>
+            <div><strong style="color:var(--text);">v2.4.0</strong>: Vercel edge rewrite proxying directly to Render Axum routing mesh with sub-18ms SLA target.</div>
+            <div><strong style="color:var(--text);">v2.3.0</strong>: Supabase double-entry Postgres balance RPC with $1.00 = 100 CU integer consistency.</div>
+          </div>
+        </details>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- COMMAND PALETTE MODAL (Ctrl+K) -->
+  <!-- ========================================================================= -->
+  <div class="modal-backdrop" id="modal-palette" role="dialog" aria-modal="true" aria-labelledby="modal-palette-title">
+    <div class="modal-dialog" style="max-width:580px;">
+      <div style="display:flex;align-items:center;gap:0.5rem;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.75rem;">
+        <span style="color:var(--cyan);font-weight:700;font-size:16px;">⌘</span>
+        <input type="text" id="palette-search-input" placeholder="Type a command or search action (e.g. allocate, deposit, terminal)..." class="form-input" style="font-size:14px;border:none;background:transparent;">
+        <button type="button" class="modal-close-btn" data-close="modal-palette" aria-label="Close">✕</button>
+      </div>
+      <div id="palette-results-list" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:0.25rem;">
+        <!-- Dynamic Palette actions -->
+      </div>
+      <div style="font-size:10px;color:var(--muted);display:flex;justify-content:space-between;border-top:1px solid rgba(255,255,255,0.08);padding-top:0.5rem;">
+        <span>↑↓ to navigate · Enter to execute</span>
+        <span>Esc to close</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHORTCUTS CHEATSHEET MODAL (?) -->
+  <div class="modal-backdrop" id="modal-shortcuts" role="dialog" aria-modal="true" aria-labelledby="modal-shortcuts-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-shortcuts-title">KEYBOARD SHORTCUTS</div>
+        <button type="button" class="modal-close-btn" data-close="modal-shortcuts">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:12px;">
+        <div style="display:flex;justify-content:space-between;"><span>Ctrl + K / ⌘K</span><strong>Command Palette</strong></div>
+        <div style="display:flex;justify-content:space-between;"><span>g then t</span><strong>Go to Terminal</strong></div>
+        <div style="display:flex;justify-content:space-between;"><span>g then c</span><strong>Go to Clusters</strong></div>
+        <div style="display:flex;justify-content:space-between;"><span>g then b</span><strong>Go to Billing</strong></div>
+        <div style="display:flex;justify-content:space-between;"><span>g then d</span><strong>Go to Docs / API</strong></div>
+        <div style="display:flex;justify-content:space-between;"><span>?</span><strong>Open this Cheatsheet</strong></div>
+        <div style="display:flex;justify-content:space-between;"><span>Esc</span><strong>Close Modal / Drawer</strong></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;border-top:1px solid rgba(255,255,255,0.08);padding-top:0.5rem;">
+        <button type="button" class="btn-secondary" data-close="modal-shortcuts">CLOSE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTIFICATIONS CENTER DRAWER -->
+  <div class="side-drawer" id="drawer-notifications" role="region" aria-label="Notifications Center">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.5rem;">
+      <strong style="color:#FFFFFF;font-size:14px;">NOTIFICATIONS CENTER</strong>
+      <button type="button" class="modal-close-btn" id="btn-close-notifications">✕</button>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;">
+      <span style="color:var(--text2);">Last 20 System Events</span>
+      <button type="button" class="btn-secondary" id="btn-clear-notifications" style="font-size:10px;padding:0.15rem 0.4rem;">CLEAR ALL</button>
+    </div>
+    <div id="notifications-list" style="display:flex;flex-direction:column;gap:0.5rem;flex:1;overflow-y:auto;">
+      <!-- Populated dynamically -->
+    </div>
+  </div>
+
+  <!-- SETTINGS DRAWER -->
+  <div class="side-drawer" id="drawer-settings" role="region" aria-label="Settings">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.5rem;">
+      <strong style="color:#FFFFFF;font-size:14px;">TERMINAL PREFERENCES</strong>
+      <button type="button" class="modal-close-btn" id="btn-close-settings">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:1.25rem;font-size:12px;">
+      <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;">
+        <span>Reduced Motion Override</span>
+        <input type="checkbox" id="setting-reduced-motion" style="accent-color:var(--cyan);">
+      </label>
+      <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;">
+        <span>Compact Density Mode</span>
+        <input type="checkbox" id="setting-compact-density" style="accent-color:var(--cyan);">
+      </label>
+      <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;">
+        <span>Use 24-Hour Time (UTC)</span>
+        <input type="checkbox" id="setting-time-format" style="accent-color:var(--cyan);" checked>
+      </label>
+      <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:1rem;">
+        <button type="button" class="btn-secondary" id="btn-reset-preferences" style="width:100%;justify-content:center;color:var(--warn);border-color:var(--warn);">
+          RESET UI PREFERENCES
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALS (SSH, Deposit, Release, Sig) -->
+  <div class="modal-backdrop" id="modal-ssh" role="dialog" aria-modal="true" aria-labelledby="modal-ssh-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-ssh-title">SSH PUBLIC KEY CONFIGURATION</div>
+        <button type="button" class="modal-close-btn" data-close="modal-ssh">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.75rem;">
+        <div class="form-group">
+          <label class="form-label" for="ssh-input-label">Key Label</label>
+          <input type="text" id="ssh-input-label" class="form-input" placeholder="e.g. dev-macbook-ed25519" value="primary-workstation">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="ssh-input-key">Public Key (OpenSSH Format)</label>
+          <textarea id="ssh-input-key" rows="4" class="form-textarea" placeholder="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... user@machine"></textarea>
+        </div>
+        <div id="ssh-validation-err" style="color:var(--bad);font-size:11px;display:none;"></div>
+        <div id="ssh-fingerprint-box" style="display:none;background:#020408;padding:0.5rem;border-radius:0.375rem;border:1px solid rgba(255,255,255,0.1);font-size:10px;">
+          <span style="color:var(--text2);">Computed SHA256 Fingerprint:</span>
+          <div id="ssh-fingerprint-val" style="color:var(--cyan);font-weight:700;"></div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:0.5rem;border-top:1px solid rgba(255,255,255,0.08);padding-top:0.75rem;">
+        <button type="button" class="btn-secondary" data-close="modal-ssh">CANCEL</button>
+        <button type="button" class="btn-primary" id="btn-save-ssh-key">SAVE KEY</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sign-in Modal (Email OTP via Supabase Auth) -->
+  <div class="modal-backdrop" id="modal-signin" role="dialog" aria-modal="true" aria-labelledby="modal-signin-title">
+    <div class="modal-dialog" style="max-width:440px;">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-signin-title">OPERATOR AUTHENTICATION</div>
+        <button type="button" class="modal-close-btn" data-close="modal-signin">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:1rem;">
+        <p style="font-size:12px;color:var(--text2);line-height:1.5;">
+          Sign in to access your sovereign compute wallet, active bare-metal clusters, and cryptographic API tokens.
+        </p>
+
+        <!-- Step 1: Request OTP -->
+        <div id="signin-step-email" class="form-group">
+          <label class="form-label" for="signin-email-input">Work or Enterprise Email</label>
+          <input type="email" id="signin-email-input" class="form-input" placeholder="operator@apexsovereign.ai">
+          <button type="button" class="btn-primary" id="btn-submit-otp" style="margin-top:0.5rem;width:100%;">
+            SEND CODE
+          </button>
+        </div>
+
+        <!-- Step 2: Verify OTP -->
+        <div id="signin-step-code" class="form-group" style="display:none;">
+          <label class="form-label" for="signin-code-input">One-Time Verification Code</label>
+          <input type="text" id="signin-code-input" class="form-input" placeholder="6-digit code (e.g. 123456)" maxlength="12">
+          <button type="button" class="btn-primary" id="btn-submit-verify" style="margin-top:0.5rem;width:100%;">
+            VERIFY &amp; PROCEED
+          </button>
+          <div style="margin-top:0.4rem;display:flex;justify-content:space-between;">
+            <button type="button" class="btn-secondary" id="btn-back-email" style="padding:0.2rem 0.5rem;font-size:10px;">← CHANGE EMAIL</button>
+            <span style="font-size:10px;color:var(--muted);">Token stored in memory only</span>
+          </div>
+        </div>
+
+        <div id="signin-feedback" style="display:none;font-size:11px;padding:0.5rem;border-radius:0.25rem;"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;border-top:1px solid rgba(255,255,255,0.08);padding-top:0.75rem;margin-top:1rem;">
+        <button type="button" class="btn-secondary" data-close="modal-signin">CLOSE</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modal-deposit" role="dialog" aria-modal="true" aria-labelledby="modal-deposit-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-deposit-title">CONFIRM CREDIT TOP-UP</div>
+        <button type="button" class="modal-close-btn" data-close="modal-deposit">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.75rem;">
+        <div style="background:#020408;padding:0.75rem;border-radius:0.375rem;border:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem;">
+            <span style="color:var(--text2);">Selected Pack:</span>
+            <strong id="modal-pack-name" style="color:#FFFFFF;">ENTERPRISE CLUSTER</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem;">
+            <span style="color:var(--text2);">Payment Amount:</span>
+            <strong id="modal-pack-usd" style="color:var(--cyan);">$500.00 USD</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;">
+            <span style="color:var(--text2);">Compute Units Credited:</span>
+            <strong id="modal-pack-cu" style="color:var(--green);">+50,000 CU</strong>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text2);">Credits are added only after your payment is confirmed by our billing service.</div>
+        <div id="paypal-button-container" style="min-height:50px;"></div>
+        <div id="paypal-simulated-msg" style="display:none;" class="sim-mode-notice">
+          Payments unavailable: could not reach billing service. Demo mode: no real charges will occur.
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;border-top:1px solid rgba(255,255,255,0.08);padding-top:0.75rem;">
+        <button type="button" class="btn-secondary" data-close="modal-deposit">CLOSE</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modal-release" role="dialog" aria-modal="true" aria-labelledby="modal-release-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-release-title" style="color:var(--bad);">CONFIRM CLUSTER DECOMMISSION</div>
+        <button type="button" class="modal-close-btn" data-close="modal-release">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.75rem;">
+        <p style="font-size:12px;color:var(--text);">Decommissioning terminates bare-metal nodes and releases InfiniBand fabrics.</p>
+        <div style="font-size:12px;color:var(--text2);">Type exact cluster ID <code id="release-target-id" style="color:var(--cyan);font-weight:700;"></code> to confirm:</div>
+        <input type="text" id="release-input-confirm" class="form-input">
+        <div id="release-err-msg" style="color:var(--bad);font-size:11px;display:none;">Cluster ID does not match.</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:0.5rem;border-top:1px solid rgba(255,255,255,0.08);padding-top:0.75rem;">
+        <button type="button" class="btn-secondary" data-close="modal-release">CANCEL</button>
+        <button type="button" class="btn-primary" id="btn-confirm-release" style="background:var(--bad);color:#FFFFFF;" disabled>RELEASE CLUSTER</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modal-sig-popover" role="dialog" aria-modal="true" aria-labelledby="modal-sig-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-sig-title">LEDGER CRYPTOGRAPHIC PROOF</div>
+        <button type="button" class="modal-close-btn" data-close="modal-sig-popover">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:12px;" id="sig-popover-content"></div>
+      <div style="display:flex;justify-content:flex-end;border-top:1px solid rgba(255,255,255,0.08);padding-top:0.75rem;">
+        <button type="button" class="btn-secondary" data-close="modal-sig-popover">DISMISS</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Shelf -->
+  <div id="toast-shelf" aria-live="polite"></div>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <div class="footer-content">
+      <div>ApexSovereign.ai · Sovereign compute exchange · Sub-18ms WireGuard mesh</div>
+      <div>Double-entry atomic ledger rule: <strong style="color:var(--cyan);">$1.00 = 100 CU</strong> (Compute Units)</div>
+      <div style="color:var(--muted);font-size:11px;">Build: production-sovereign-mesh-v2.4.8 · Vercel Edge Rewrites → Render Upstream</div>
+    </div>
+  </footer>
+
+  <!-- ========================================================================= -->
+  <!-- SINGLE-FILE PRODUCTION SCRIPT -->
+  <!-- ========================================================================= -->
+  <script>
+    /**
+     * ApexSovereign.ai - Single-File Enterprise SPA Engine
+     * Strict Honesty Model: LIVE vs SIMULATED separation across all domains.
+     */
+    const API_BASE = "";
+
+    const DATA_DOMAINS = {
+      health: "SIMULATED",
+      market: "SIMULATED",
+      mesh: "SIMULATED",
+      audit: "SIMULATED",
+      clusters: "SIMULATED",
+      balance: "SIMULATED",
+      ledger: "SIMULATED",
+      security: "SIMULATED",
+      keys: "SIMULATED"
+    };
+
+    const MEMORY_SECRETS = {
+      activeApiKey: "",
+      activeApiKeyId: "",
+      savedKeys: []
+    };
+
+    const APP = {
+      activeTab: "terminal",
+      marketPaused: false,
+      auditPaused: false,
+      compareMode: false,
+      comparedGpus: ["H100 SXM5", "B200 NVL72"],
+      backendStatus: "UNREACHABLE",
+      latencySamples: [],
+      healthProbeInFlight: false,
+      coldStartAttempted: false,
+      lastHealthTick: 0,
+      paypalClientId: null,
+      paypalConfigured: false,
+      notifications: [],
+      pinnedLogs: new Set(),
+      
+      allocator: {
+        model: "H100 SXM5",
+        region: "us-ashburn",
+        nodes: 4,
+        term: "on-demand",
+        jurisdictionPinned: false,
+        jurisdiction: "US",
+        sshKeyId: ""
+      },
+
+      marketRows: [
+        { model: "H100 SXM5", interconnect: "NVLink 4", spot_cu: 194, on_demand_cu: 323, savings: 40, available: 420, regions: 8, history: [198, 195, 194, 193, 196, 194, 192, 194] },
+        { model: "B200 NVL72", interconnect: "NVLink 5", spot_cu: 285, on_demand_cu: 460, savings: 38, available: 164, regions: 4, history: [290, 288, 285, 287, 284, 285, 286, 285] },
+        { model: "A100 SXM4", interconnect: "NVLink 3", spot_cu: 142, on_demand_cu: 218, savings: 35, available: 312, regions: 6, history: [145, 143, 142, 141, 144, 142, 143, 142] },
+        { model: "L40S PCIe", interconnect: "PCIe Gen4", spot_cu: 89, on_demand_cu: 131, savings: 32, available: 580, regions: 12, history: [92, 90, 89, 88, 91, 89, 89, 89] }
+      ],
+
+      meshNodes: [
+        { id: "us-ashburn", city: "Ashburn", lat: 39.0, lon: -77.5, health: "ok", rtt: 11.4, gpus: "H100, B200", free: 1240 },
+        { id: "us-dallas", city: "Dallas", lat: 32.8, lon: -96.8, health: "ok", rtt: 12.8, gpus: "H100, A100", free: 890 },
+        { id: "us-portland", city: "Portland", lat: 45.5, lon: -122.7, health: "ok", rtt: 13.6, gpus: "B200, L40S", free: 620 },
+        { id: "sa-saopaulo", city: "São Paulo", lat: -23.5, lon: -46.6, health: "ok", rtt: 21.0, gpus: "A100", free: 210 },
+        { id: "eu-dublin", city: "Dublin", lat: 53.3, lon: -6.3, health: "ok", rtt: 15.2, gpus: "H100, L40S", free: 540 },
+        { id: "eu-frankfurt", city: "Frankfurt", lat: 50.1, lon: 8.7, health: "ok", rtt: 14.8, gpus: "H100, B200", free: 980 },
+        { id: "eu-stockholm", city: "Stockholm", lat: 59.3, lon: 18.1, health: "ok", rtt: 16.1, gpus: "H100", free: 410 },
+        { id: "ap-mumbai", city: "Mumbai", lat: 19.1, lon: 72.9, health: "ok", rtt: 18.0, gpus: "A100, L40S", free: 780 },
+        { id: "ap-singapore", city: "Singapore", lat: 1.35, lon: 103.8, health: "ok", rtt: 17.2, gpus: "H100, B200", free: 850 },
+        { id: "ap-tokyo", city: "Tokyo", lat: 35.7, lon: 139.7, health: "ok", rtt: 16.8, gpus: "H100, B200, L40S", free: 1120 },
+        { id: "ap-seoul", city: "Seoul", lat: 37.6, lon: 127.0, health: "ok", rtt: 16.5, gpus: "H100, A100", free: 450 },
+        { id: "ap-sydney", city: "Sydney", lat: -33.9, lon: 151.2, health: "ok", rtt: 19.4, gpus: "A100, L40S", free: 340 },
+        { id: "af-johannesburg", city: "Johannesburg", lat: -26.2, lon: 28.0, health: "ok", rtt: 24.2, gpus: "L40S", free: 190 },
+        { id: "me-dubai", city: "Dubai", lat: 25.2, lon: 55.3, health: "ok", rtt: 17.9, gpus: "H100, A100", free: 520 }
+      ],
+
+      auditLogs: [],
+
+      clusters: [],
+
+      balance: { available_cu: 0, reserved_cu: 0, active_clusters: 0, savings_usd: 0 },
+
+      security: {
+        rls_enabled: true,
+        tables: [{ name: "ledger_entries", rls: true }, { name: "accounts", rls: true }, { name: "clusters", rls: true }],
+        last_checked: null
+      },
+
+      ledgerEntries: [],
+
+      sshKeys: []
+    };
+
+    // Authentication State (Session token held in memory / sessionStorage)
+    const AUTH_STATE = {
+      signedIn: false,
+      email: "",
+      accessToken: safeGetItem("apx_session_token") || ""
+    };
+
+    // 1. HARD ENGINEERING HELPER: api(path, opts)
+    async function api(path, opts = {}) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), opts.timeout || 4000);
+      try {
+        const headers = {
+          "Accept": "application/json",
+          ...(opts.body ? { "Content-Type": "application/json" } : {}),
+          ...(opts.headers || {})
+        };
+        if (AUTH_STATE.accessToken) {
+          headers["Authorization"] = `Bearer ${AUTH_STATE.accessToken}`;
+        } else if (MEMORY_SECRETS.activeApiKey) {
+          headers["Authorization"] = `Bearer ${MEMORY_SECRETS.activeApiKey}`;
+        }
+        const res = await fetch(`${API_BASE}${path}`, {
+          ...opts,
+          signal: controller.signal,
+          cache: "no-store",
+          keepalive: opts.keepalive ?? ((opts.method || "GET").toUpperCase() === "GET"),
+          headers
+        });
+        clearTimeout(timeoutId);
+        const contentType = res.headers.get("content-type") || "";
+        let data = null;
+        if (contentType.includes("application/json")) {
+          try { data = await res.json(); } catch (_) { data = null; }
+        }
+        return {
+          ok: res.ok,
+          status: res.status,
+          contentType,
+          data,
+          error: res.ok ? null : (data?.error?.message || data?.detail?.error?.message || data?.detail?.message || data?.message || data?.error || `HTTP ${res.status}`)
+        };
+      } catch (err) {
+        clearTimeout(timeoutId);
+        return {
+          ok: false,
+          status: 0,
+          contentType: "",
+          data: null,
+          error: err.name === "AbortError" ? "Request timeout (4s exceeded)" : err.message
+        };
+      }
+    }
+
+    // Safe Storage Wrappers
+    function safeGetItem(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
+    function safeSetItem(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }
+
+    // Clipboard helper with visible confirmation and fallback
+    function copyText(txt, label = "Copied to clipboard") {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).then(() => notify(label, "success")).catch(() => fallbackCopy(txt, label));
+      } else {
+        fallbackCopy(txt, label);
+      }
+    }
+    function fallbackCopy(txt, label) {
+      try {
+        const el = document.createElement("textarea");
+        el.value = txt;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand("copy");
+        document.body.removeChild(el);
+        notify(label, "success");
+      } catch (_) {
+        notify("Clipboard write restricted.", "warn");
+      }
+    }
+
+    // Notifications System
+    function notify(message, type = "info") {
+      const shelf = document.getElementById("toast-shelf");
+      const notifItem = { id: Date.now(), message, type, time: new Date() };
+      APP.notifications.unshift(notifItem);
+      if (APP.notifications.length > 20) APP.notifications.pop();
+      updateNotificationsBadge();
+
+      if (shelf) {
+        const toast = document.createElement("div");
+        toast.className = `toast-item toast-${type}`;
+        const s = document.createElement("span");
+        s.textContent = message;
+        toast.appendChild(s);
+        const cb = document.createElement("button");
+        cb.type = "button";
+        cb.textContent = "✕";
+        cb.style.background = "transparent";
+        cb.style.border = "none";
+        cb.style.color = "var(--text2)";
+        cb.style.cursor = "pointer";
+        cb.addEventListener("click", () => toast.remove());
+        toast.appendChild(cb);
+        shelf.appendChild(toast);
+        setTimeout(() => { if (toast.parentNode) toast.remove(); }, 5000);
+      }
+    }
+
+    function updateNotificationsBadge() {
+      const b = document.getElementById("notif-badge");
+      if (b) {
+        b.textContent = APP.notifications.length;
+        b.style.display = APP.notifications.length > 0 ? "inline" : "none";
+      }
+      const list = document.getElementById("notifications-list");
+      if (!list) return;
+      list.innerHTML = "";
+      if (APP.notifications.length === 0) {
+        list.innerHTML = '<div style="color:var(--text2);font-size:11px;">No recent notifications.</div>';
+        return;
+      }
+      APP.notifications.forEach(n => {
+        const d = document.createElement("div");
+        d.style.padding = "0.5rem";
+        d.style.borderRadius = "0.25rem";
+        d.style.background = "#020408";
+        d.style.border = "1px solid rgba(255,255,255,0.06)";
+        d.innerHTML = `
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:0.15rem;">
+            <span style="font-weight:700;color:${n.type === 'error' ? 'var(--bad)' : (n.type === 'warn' ? 'var(--warn)' : 'var(--cyan)')};">${n.type.toUpperCase()}</span>
+            <span>${n.time.toLocaleTimeString()}</span>
+          </div>
+          <div style="font-size:11px;color:var(--text);">${n.message}</div>
+        `;
+        list.appendChild(d);
+      });
+    }
+
+    // 2. TRUSTWORTHY HEALTH CHECK
+    // Counts as healthy only if HTTP 200, JSON, and the backend reports a known healthy status.
+    async function probeBackendHealth(retryCount = 0) {
+      // Avoid overlapping background probes so RTT samples remain meaningful.
+      if (APP.healthProbeInFlight) return;
+      APP.healthProbeInFlight = true;
+      const t0 = performance.now();
+      let res;
+      try {
+        res = await api("/health", { timeout: 3500, keepalive: true });
+      } finally {
+        APP.healthProbeInFlight = false;
+      }
+      const rtt = Math.max(1.0, Math.round((performance.now() - t0) * 10) / 10);
+      APP.lastHealthTick = Date.now();
+
+      // Cold start hint
+      if (!APP.coldStartAttempted && rtt > 1500 && !res.ok && retryCount < 3) {
+        notify("Backend is waking up (cold start). Retrying...", "warn");
+        APP.coldStartAttempted = true;
+        setTimeout(() => probeBackendHealth(retryCount + 1), 1000 * (retryCount + 1));
+        return;
+      }
+
+      const isValidHealth = res.ok && 
+        res.status === 200 && 
+        res.contentType && 
+        res.contentType.includes("application/json") && 
+        res.data &&
+        ["ok", "OPERATIONAL", "healthy", "HEALTHY"].includes(res.data.status);
+
+      const chipBackend = document.getElementById("val-backend");
+      const chipVersion = document.getElementById("val-version");
+      const chipLatency = document.getElementById("val-latency");
+      const chipRouter = document.getElementById("val-router");
+      const banner = document.getElementById("unreachable-banner");
+
+      if (isValidHealth) {
+        DATA_DOMAINS.health = "LIVE";
+        APP.latencySamples.push(rtt);
+        if (APP.latencySamples.length > 5) APP.latencySamples.shift();
+
+        APP.backendStatus = "HEALTHY";
+
+        if (chipBackend) {
+          chipBackend.textContent = APP.backendStatus;
+          chipBackend.className = "chip-green";
+        }
+        if (chipVersion) {
+          const b = res.data.version || res.data.build || "v2.4-prod";
+          const e = res.data.env || "mesh";
+          chipVersion.textContent = `${b} (${e})`;
+          chipVersion.className = "chip-cyan";
+        }
+        if (chipLatency) {
+          // Median of last 5
+          const sorted = [...APP.latencySamples].sort((a,b)=>a-b);
+          const median = sorted[Math.floor(sorted.length / 2)];
+          chipLatency.textContent = median < 18.0 ? `SECURE (<18ms) · ${median.toFixed(1)}ms` : `EDGE RTT · ${median.toFixed(1)}ms · SERVICE WAKING`;
+          chipLatency.className = median <= 18.0 ? "chip-cyan" : (median <= 60.0 ? "chip-warn" : "chip-bad");
+          chipLatency.parentElement.title = `Last sample: ${rtt}ms · Median(5): ${median.toFixed(1)}ms`;
+        }
+        if (chipRouter) {
+          chipRouter.textContent = res.data.router_host || res.data.engine || "axum-mesh-01";
+          chipRouter.className = "chip-cyan";
+        }
+        if (banner) banner.style.display = "none";
+      } else {
+        DATA_DOMAINS.health = "SIMULATED";
+        APP.backendStatus = "UNREACHABLE";
+        APP.latencySamples = [];
+
+        if (chipBackend) { chipBackend.textContent = "UNREACHABLE"; chipBackend.className = "chip-bad"; }
+        if (chipVersion) { chipVersion.textContent = "v-- DEMO"; chipVersion.className = "chip-grey"; }
+        if (chipLatency) { chipLatency.textContent = "n/a"; chipLatency.className = "chip-bad"; chipLatency.parentElement.title = "Backend unreachable: latency n/a"; }
+        if (chipRouter) { chipRouter.textContent = "--"; chipRouter.className = "chip-grey"; }
+
+        // All domains drop to SIMULATED
+        for (const k in DATA_DOMAINS) DATA_DOMAINS[k] = "SIMULATED";
+
+        if (banner && !safeGetItem("banner_dismissed")) { banner.style.display = "flex"; }
+      }
+
+      updateSourcePills();
+      updateBackendPopover(res.data, rtt, isValidHealth);
+      updateLedgerSigningChip();
+    }
+
+    function updateBackendPopover(data, lastRtt, isValid) {
+      document.getElementById("pop-last-check").textContent = new Date().toLocaleTimeString();
+      document.getElementById("pop-router").textContent = isValid ? (data?.router_host || "axum-mesh") : "--";
+      document.getElementById("pop-build").textContent = isValid ? `${data?.build || "v2.4"} (${data?.env || "prod"})` : "DEMO / UNREACHABLE";
+
+      // Mini sparkline of last 5 samples
+      const svg = document.getElementById("pop-latency-sparkline");
+      if (svg) {
+        svg.innerHTML = "";
+        if (APP.latencySamples.length >= 2) {
+          const min = Math.min(...APP.latencySamples);
+          const max = Math.max(...APP.latencySamples);
+          const range = (max - min) || 1;
+          const pts = APP.latencySamples.map((v, i) => {
+            const x = (i / (APP.latencySamples.length - 1)) * 100;
+            const y = 20 - ((v - min) / range) * 16;
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+          }).join(" ");
+          svg.innerHTML = `<polyline fill="none" stroke="var(--cyan)" stroke-width="2" points="${pts}"/>`;
+        }
+      }
+
+      // Domains summary
+      const sumEl = document.getElementById("pop-domains-summary");
+      if (sumEl) {
+        sumEl.innerHTML = Object.entries(DATA_DOMAINS).map(([d, s]) => `
+          <span style="padding:1px 4px;border-radius:2px;background:#000;color:${s === 'LIVE' ? 'var(--cyan)' : 'var(--warn)'};">${d}:${s}</span>
+        `).join("");
+      }
+    }
+
+    function updateSourcePills() {
+      for (const [domain, src] of Object.entries(DATA_DOMAINS)) {
+        const pill = document.getElementById(`source-${domain}`);
+        if (pill) {
+          pill.textContent = src;
+          pill.className = `source-pill source-${src === 'LIVE' ? 'live' : 'sim'}`;
+        }
+      }
+      const bSim = document.getElementById("badge-balance-sim");
+      if (bSim) bSim.style.display = DATA_DOMAINS.balance === "LIVE" ? "none" : "inline";
+
+      const simMap = document.getElementById("map-mode-label");
+      if (simMap) simMap.textContent = DATA_DOMAINS.mesh === "LIVE" ? "[LIVE TOPOLOGY]" : "[DEMO TOPOLOGY]";
+
+      const tryitBtn = document.getElementById("btn-tryit-send");
+      const tryitInfo = document.getElementById("tryit-status-info");
+      if (tryitBtn && tryitInfo) {
+        const isLive = DATA_DOMAINS.health === "LIVE" && MEMORY_SECRETS.activeApiKey;
+        tryitBtn.disabled = !isLive;
+        tryitBtn.title = isLive ? "Execute live API call" : "Demo mode: no real requests";
+        tryitInfo.textContent = isLive ? "LIVE Ingress Active" : "SIMULATED mode: Try-It disabled";
+        tryitInfo.style.color = isLive ? "var(--green)" : "var(--warn)";
+      }
+    }
+
+    function updateLedgerSigningChip() {
+      const chip = document.getElementById("val-signing");
+      if (!chip) return;
+      if (!APP.ledgerEntries || APP.ledgerEntries.length === 0) {
+        chip.textContent = "UNKNOWN"; chip.className = "chip-grey"; return;
+      }
+      const v = APP.ledgerEntries.filter(e => e.hmac_verified === true).length;
+      const f = APP.ledgerEntries.filter(e => e.hmac_verified === false).length;
+      if (f > 0) { chip.textContent = "FAILED"; chip.className = "chip-bad"; }
+      else if (v === APP.ledgerEntries.length) { chip.textContent = "HMAC-SHA256"; chip.className = "chip-cyan"; }
+      else { chip.textContent = "PARTIAL"; chip.className = "chip-warn"; }
+    }
+
+    // 3. WORLD MAP (Run-Length-Encoded 120x60 Equirectangular Grid)
+    const RLE_WORLD_MASK = "-276,20,-100,20,-100,20,-16,45,-39,20,-16,45,-7,9,-23,20,-5,10,-1,45,-7,52,-5,10,-1,45,-7,52,-5,10,-1,45,-7,52,-5,10,-1,45,-7,38,-15,60,-7,38,-15,60,-7,38,-15,60,-16,29,-16,47,-33,19,-21,47,-33,19,-20,11,-7,34,-29,19,-20,4,-1,8,-5,34,-29,19,-20,4,-1,8,-5,34,-29,19,-17,55,-29,19,-17,55,-29,19,-17,26,-2,8,-48,19,-17,26,-2,8,-51,10,-23,26,-2,8,-2,5,-44,10,-23,26,-2,8,-2,5,-44,13,-20,26,-2,8,-2,5,-2,3,-72,26,-2,8,-2,5,-2,3,-51,10,-11,23,-5,8,-2,5,-2,3,-51,10,-11,23,-5,8,-9,3,-51,10,-11,23,-15,3,-1,4,-53,10,-20,14,-15,3,-1,4,-53,15,-15,14,-15,3,-1,4,-3,4,-46,15,-15,14,-15,3,-1,4,-3,4,-46,15,-15,11,-21,3,-5,4,-46,15,-15,11,-79,15,-15,14,-21,13,-42,15,-16,8,-2,3,-21,13,-42,15,-16,8,-2,3,-21,13,-42,15,-16,8,-2,3,-21,13,-44,8,-21,8,-2,3,-21,13,-44,8,-21,8,-26,13,-44,8,-21,8,-26,13,-44,8,-21,8,-26,13,-4,5,-35,8,-55,13,-4,5,-35,8,-65,2,-5,5,-35,8,-65,2,-5,5,-35,8,-112,8,-112,8,-112,8,-447,103,-17,103,-17,103,-17,103,-17,103,-17,103,-17,103,-17,103,-7";
+
+    function decodeWorldMask() {
+      const runs = RLE_WORLD_MASK.split(",").map(Number);
+      const grid = [];
+      let total = 0;
+      runs.forEach(count => {
+        const isLand = count > 0;
+        const len = Math.abs(count);
+        for (let i = 0; i < len; i++) {
+          grid.push(isLand);
+          total++;
+        }
+      });
+      return grid;
+    }
+
+    function initProceduralWorldMap() {
+      const svg = document.getElementById("mesh-map-svg");
+      const tooltip = document.getElementById("map-tooltip");
+      if (!svg) return;
+      svg.innerHTML = "";
+
+      const grid = decodeWorldMask();
+      const dotSpacing = 7; // 120 * 7 = 840px, 60 * 7 = 420px
+      const gLand = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      gLand.setAttribute("fill", "rgba(0, 240, 255, 0.18)");
+
+      for (let r = 0; r < 60; r++) {
+        for (let c = 0; c < 120; c++) {
+          const idx = r * 120 + c;
+          if (grid[idx]) {
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute("cx", c * dotSpacing + 3.5);
+            circle.setAttribute("cy", r * dotSpacing + 3.5);
+            circle.setAttribute("r", "1.4");
+            gLand.appendChild(circle);
+          }
+        }
+      }
+      svg.appendChild(gLand);
+
+      // Quadratic Arcs
+      const gArcs = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      const connections = [
+        ["us-ashburn", "eu-frankfurt"],
+        ["eu-frankfurt", "ap-singapore"],
+        ["ap-singapore", "ap-tokyo"],
+        ["us-portland", "ap-tokyo"],
+        ["us-ashburn", "sa-saopaulo"],
+        ["eu-frankfurt", "me-dubai"],
+        ["ap-singapore", "ap-sydney"],
+        ["eu-frankfurt", "af-johannesburg"]
+      ];
+
+      connections.forEach(([idA, idB]) => {
+        const nA = APP.meshNodes.find(n => n.id === idA);
+        const nB = APP.meshNodes.find(n => n.id === idB);
+        if (nA && nB) {
+          const xA = ((nA.lon + 180) / 360) * 840;
+          const yA = ((90 - nA.lat) / 180) * 420;
+          const xB = ((nB.lon + 180) / 360) * 840;
+          const yB = ((90 - nB.lat) / 180) * 420;
+
+          const cx = (xA + xB) / 2;
+          const cy = Math.min(yA, yB) - 25;
+
+          const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          p.setAttribute("d", `M ${xA.toFixed(1)} ${yA.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${xB.toFixed(1)} ${yB.toFixed(1)}`);
+          p.setAttribute("fill", "none");
+          p.setAttribute("stroke", "rgba(0, 240, 255, 0.35)");
+          p.setAttribute("stroke-width", "1.2");
+          p.setAttribute("stroke-dasharray", "4 4");
+          gArcs.appendChild(p);
+        }
+      });
+      svg.appendChild(gArcs);
+
+      // Node Dots
+      const gNodes = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      APP.meshNodes.forEach(node => {
+        const nx = ((node.lon + 180) / 360) * 840;
+        const ny = ((90 - node.lat) / 180) * 420;
+
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        g.setAttribute("class", "map-node");
+        g.setAttribute("tabindex", "0");
+        g.setAttribute("role", "button");
+        g.setAttribute("aria-label", `Mesh Node ${node.city}`);
+
+        // Pulse ring
+        const ring = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        ring.setAttribute("cx", nx.toFixed(1));
+        ring.setAttribute("cy", ny.toFixed(1));
+        ring.setAttribute("r", "8");
+        ring.setAttribute("fill", "none");
+        ring.setAttribute("stroke", node.health === "ok" ? "var(--green)" : "var(--warn)");
+        ring.setAttribute("stroke-width", "1");
+        ring.setAttribute("opacity", "0.6");
+        g.appendChild(ring);
+
+        // Core
+        const core = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        core.setAttribute("class", "core");
+        core.setAttribute("cx", nx.toFixed(1));
+        core.setAttribute("cy", ny.toFixed(1));
+        core.setAttribute("r", "3.8");
+        core.setAttribute("fill", node.health === "ok" ? "var(--green)" : "var(--warn)");
+        g.appendChild(core);
+
+        const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        txt.setAttribute("x", (nx + 7).toFixed(1));
+        txt.setAttribute("y", (ny + 3).toFixed(1));
+        txt.setAttribute("fill", "var(--text2)");
+        txt.setAttribute("font-size", "10");
+        txt.textContent = node.city;
+        g.appendChild(txt);
+
+        const showTip = (e) => {
+          if (!tooltip) return;
+          const isSim = DATA_DOMAINS.mesh === "SIMULATED";
+          tooltip.innerHTML = `
+            <div style="font-weight:700;color:#FFFFFF;">${node.city} (${node.id.toUpperCase()}) ${isSim ? '<span style="color:var(--warn);font-size:9px;">[DEMO]</span>' : ''}</div>
+            <div style="color:var(--cyan);">RTT: ${node.rtt}ms · Status: ${node.health.toUpperCase()}</div>
+            <div style="color:var(--text2);font-size:11px;">GPUs: ${node.gpus}</div>
+            <div style="color:var(--green);font-size:11px;">Free Capacity: ${node.free} GPUs</div>
+          `;
+          tooltip.style.display = "block";
+          const rect = svg.getBoundingClientRect();
+          const scaleX = rect.width / 840;
+          const scaleY = rect.height / 420;
+          tooltip.style.left = `${Math.min(rect.width - 170, nx * scaleX + 10)}px`;
+          tooltip.style.top = `${Math.max(10, ny * scaleY - 10)}px`;
+        };
+        const hideTip = () => { if (tooltip) tooltip.style.display = "none"; };
+
+        g.addEventListener("mouseenter", showTip);
+        g.addEventListener("mouseleave", hideTip);
+        g.addEventListener("focus", showTip);
+        g.addEventListener("blur", hideTip);
+
+        g.addEventListener("click", () => {
+          APP.allocator.region = node.id;
+          document.getElementById("chip-selected-region").innerHTML = `SELECTED: <strong>${node.city} (${node.rtt}ms)</strong>`;
+          const s = document.getElementById("alloc-region");
+          if (s) s.value = node.id;
+          notify(`Preferred mesh region set to ${node.city}`, "info");
+        });
+
+        gNodes.appendChild(g);
+      });
+      svg.appendChild(gNodes);
+    }
+
+    // 4. RATE MATRIX (Sort, Compare mode, Sparklines)
+    function renderMarketCards() {
+      const grid = document.getElementById("market-cards-grid");
+      if (!grid) return;
+      grid.innerHTML = "";
+
+      const sortMode = document.getElementById("select-matrix-sort")?.value || "default";
+      let sorted = [...APP.marketRows];
+      if (sortMode === "savings-desc") sorted.sort((a,b)=>b.savings - a.savings);
+      else if (sortMode === "price-asc") sorted.sort((a,b)=>a.spot_cu - b.spot_cu);
+      else if (sortMode === "avail-desc") sorted.sort((a,b)=>b.available - a.available);
+
+      sorted.forEach((row, idx) => {
+        const card = document.createElement("div");
+        card.className = "gpu-card";
+        card.id = `gpu-card-${row.model.replace(/\s+/g, "-")}`;
+
+        card.innerHTML = `
+          <div class="gpu-card-header">
+            <div>
+              <div class="gpu-model">${row.model}</div>
+              <div class="gpu-interconnect">${row.interconnect}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.4rem;">
+              ${APP.compareMode ? `<input type="checkbox" class="compare-checkbox" data-model="${row.model}" ${APP.comparedGpus.includes(row.model) ? 'checked' : ''} style="accent-color:var(--cyan);">` : ''}
+              ${row.price_source === 'supplier'
+                ? `<span class="savings-badge">LIVE</span>`
+                : `<span class="savings-badge" style="background:rgba(255,176,32,0.15);border-color:var(--warn);color:var(--warn);" title="Reference baseline, not a supplier quote.">REFERENCE</span>`
+              }
+              <span class="savings-badge">-${row.savings}%</span>
+            </div>
+          </div>
+          <div class="price-block">
+            <div class="spot-price-usd">$${(row.spot_cu / 100).toFixed(2)}/hr</div>
+            <div class="spot-price-cu">${row.spot_cu} CU / GPU-hr</div>
+            <div class="baseline-price" title="Reference baseline, not a quote from any named provider">$${(row.on_demand_cu / 100).toFixed(2)}/hr</div>
+          </div>
+          <svg class="sparkline-svg" viewBox="0 0 100 24" preserveAspectRatio="none">
+            <polyline fill="none" stroke="var(--cyan)" stroke-width="1.5" points="${buildSparklinePoints(row.history)}"/>
+          </svg>
+          <div class="gpu-meta">
+            <span>Avail: ${row.available} GPUs</span>
+            <span>${row.regions} Regions</span>
+          </div>
+          <button type="button" class="btn-primary" style="width:100%;padding:0.35rem;font-size:12px;">ALLOCATE</button>
+        `;
+
+        card.querySelector("button").addEventListener("click", () => {
+          APP.allocator.model = row.model;
+          const sel = document.getElementById("alloc-model");
+          if (sel) sel.value = row.model;
+          updateAllocatorEstimate();
+          switchTab("clusters");
+        });
+
+        if (APP.compareMode) {
+          card.querySelector(".compare-checkbox")?.addEventListener("change", (e) => {
+            if (e.target.checked) {
+              if (APP.comparedGpus.length >= 2) APP.comparedGpus.shift();
+              APP.comparedGpus.push(row.model);
+            } else {
+              APP.comparedGpus = APP.comparedGpus.filter(m => m !== row.model);
+            }
+            renderCompareDiff();
+            renderMarketCards();
+          });
+        }
+
+        grid.appendChild(card);
+      });
+    }
+
+    function buildSparklinePoints(history) {
+      if (!history || history.length < 2) return "0,12 100,12";
+      const min = Math.min(...history);
+      const max = Math.max(...history);
+      const range = (max - min) || 1;
+      return history.map((v, i) => {
+        const x = (i / (history.length - 1)) * 100;
+        const y = 22 - ((v - min) / range) * 18;
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      }).join(" ");
+    }
+
+    function renderCompareDiff() {
+      const container = document.getElementById("compare-cards-diff");
+      if (!container) return;
+      container.innerHTML = "";
+      if (APP.comparedGpus.length < 2) {
+        container.innerHTML = '<div style="color:var(--text2);grid-column:span 2;">Select 2 GPUs to view side-by-side comparison.</div>';
+        return;
+      }
+      APP.comparedGpus.forEach(m => {
+        const r = APP.marketRows.find(x => x.model === m);
+        if (r) {
+          const col = document.createElement("div");
+          col.style.background = "rgba(10,15,25,0.8)";
+          col.style.padding = "0.75rem";
+          col.style.borderRadius = "0.375rem";
+          col.style.border = "1px solid var(--border)";
+          col.innerHTML = `
+            <div style="font-weight:700;color:#FFFFFF;">${r.model}</div>
+            <div style="font-size:16px;color:var(--cyan);font-weight:700;">$${(r.spot_cu/100).toFixed(2)}/hr (${r.spot_cu} CU)</div>
+            <div style="color:var(--green);font-size:11px;">-${r.savings}% savings vs reference</div>
+            <div style="color:var(--text2);font-size:11px;">Interconnect: ${r.interconnect}</div>
+          `;
+          container.appendChild(col);
+        }
+      });
+    }
+
+    async function pollMarket() {
+      if (APP.marketPaused || document.visibilityState === "hidden") return;
+
+      if (DATA_DOMAINS.health === "LIVE") {
+        const res = await api("/v1/market/spot");
+        if (res.ok && res.data && Array.isArray(res.data.rows)) {
+          DATA_DOMAINS.market = "LIVE";
+          APP.marketRows = res.data.rows.map(r => ({
+            model: r.model,
+            interconnect: r.interconnect || "NVLink",
+            spot_cu: r.spot_cu,
+            on_demand_cu: r.on_demand_cu,
+            savings: Math.round((1 - (r.spot_cu / r.on_demand_cu)) * 100),
+            available: r.available,
+            regions: r.regions ? (Array.isArray(r.regions) ? r.regions.length : r.regions) : 6,
+            history: r.history || [r.spot_cu]
+          }));
+          document.getElementById("val-market-tick").textContent = new Date().toLocaleTimeString();
+          renderMarketCards();
+          updateSourcePills();
+          return;
+        }
+      }
+
+      // SIMULATED walk
+      DATA_DOMAINS.market = "SIMULATED";
+      const baselineMap = {
+        "H100 SXM5": { baseCu: 194, baseSav: 40 },
+        "B200 NVL72": { baseCu: 285, baseSav: 38 },
+        "A100 SXM4": { baseCu: 142, baseSav: 35 },
+        "L40S PCIe": { baseCu: 89, baseSav: 32 }
+      };
+
+      APP.marketRows.forEach(row => {
+        const b = baselineMap[row.model] || { baseCu: row.spot_cu, baseSav: 40 };
+        row.spot_cu = b.baseCu;
+        row.savings = b.baseSav;
+        row.on_demand_cu = Math.round(row.spot_cu / (1 - row.savings / 100));
+        row.history = [...row.history.slice(-11), row.spot_cu];
+      });
+
+      document.getElementById("val-market-tick").textContent = new Date().toLocaleTimeString() + " [REFERENCE]";
+      renderMarketCards();
+      updateSourcePills();
+    }
+
+    // 5. AUDIT LOG (Search, Pin, Copy Trace, Max 200)
+    function addAuditEntry(level, eventName, detail, traceId = null, isSim = false) {
+      const now = new Date();
+      const ts = now.toISOString().substring(11, 23);
+      const trace = traceId || ("trc_" + Math.random().toString(36).substring(2, 8));
+      const entry = { id: Date.now() + Math.random(), ts, level, event: eventName, detail: (isSim ? "[SIM] " : "") + detail, trace };
+      APP.auditLogs.unshift(entry);
+      if (APP.auditLogs.length > 200) APP.auditLogs.pop();
+      renderAuditLogs();
+    }
+
+    function renderAuditLogs() {
+      const screen = document.getElementById("audit-terminal-screen");
+      if (!screen || APP.auditPaused) return;
+
+      const activeFilter = safeGetItem("audit_filter") || "ALL";
+      const searchTxt = (document.getElementById("input-audit-search")?.value || "").toLowerCase();
+
+      const filtered = APP.auditLogs.filter(e => {
+        if (activeFilter === "ERROR" && e.level !== "ERROR") return false;
+        if (activeFilter !== "ALL" && activeFilter !== "ERROR" && !e.event.toUpperCase().includes(activeFilter)) return false;
+        if (searchTxt && !e.detail.toLowerCase().includes(searchTxt) && !e.event.toLowerCase().includes(searchTxt) && !e.trace.toLowerCase().includes(searchTxt)) return false;
+        return true;
+      });
+
+      screen.innerHTML = "";
+      filtered.forEach(e => {
+        const row = document.createElement("div");
+        row.className = `log-row ${APP.pinnedLogs.has(e.id) ? 'pinned-log' : ''}`;
+
+        const tsSpan = document.createElement("span");
+        tsSpan.className = "log-ts";
+        tsSpan.textContent = e.ts;
+
+        const lvlSpan = document.createElement("span");
+        lvlSpan.className = `log-level ${e.level}`;
+        lvlSpan.textContent = e.level.padEnd(5);
+
+        const msgSpan = document.createElement("span");
+        msgSpan.className = "log-msg";
+        msgSpan.textContent = `${e.event.padEnd(14)} ${e.detail}`;
+
+        const trcSpan = document.createElement("span");
+        trcSpan.className = "log-trace";
+        trcSpan.textContent = e.trace;
+        trcSpan.title = "Click to copy trace ID";
+        trcSpan.addEventListener("click", () => copyText(e.trace, `Copied trace ${e.trace}`));
+
+        const pinBtn = document.createElement("button");
+        pinBtn.type = "button";
+        pinBtn.style.background = "transparent";
+        pinBtn.style.border = "none";
+        pinBtn.style.color = APP.pinnedLogs.has(e.id) ? "var(--cyan)" : "var(--muted)";
+        pinBtn.style.cursor = "pointer";
+        pinBtn.textContent = "📌";
+        pinBtn.title = "Pin line";
+        pinBtn.addEventListener("click", () => {
+          if (APP.pinnedLogs.has(e.id)) APP.pinnedLogs.delete(e.id);
+          else APP.pinnedLogs.add(e.id);
+          renderAuditLogs();
+        });
+
+        row.appendChild(tsSpan);
+        row.appendChild(lvlSpan);
+        row.appendChild(msgSpan);
+        row.appendChild(trcSpan);
+        row.appendChild(pinBtn);
+        screen.appendChild(row);
+      });
+    }
+
+    let auditEventSource = null;
+    function startAuditStream() {
+      try {
+        auditEventSource = new EventSource(`${API_BASE}/v1/audit/stream`);
+        auditEventSource.onopen = () => { DATA_DOMAINS.audit = "LIVE"; updateSourcePills(); };
+        auditEventSource.onmessage = (evt) => {
+          try {
+            const d = JSON.parse(evt.data);
+            addAuditEntry(d.level || "INFO", d.event || "SYSTEM", d.detail || "", d.trace_id, false);
+          } catch (_) {}
+        };
+        auditEventSource.onerror = () => {
+          auditEventSource?.close();
+          DATA_DOMAINS.audit = "SIMULATED";
+          updateSourcePills();
+          startAuditSimulation();
+        };
+      } catch (_) {
+        startAuditSimulation();
+      }
+    }
+
+    let auditSimTimer = null;
+    function startAuditSimulation() {
+      if (auditSimTimer) clearInterval(auditSimTimer);
+      const evs = [
+        { lvl: "INFO", ev: "ROUTE_OPTIMIZE", d: "WireGuard route re-pinned to DE-CIX Frankfurt (14.8ms)." },
+        { lvl: "INFO", ev: "MESH_PING", d: "Peer pulse acknowledged across 14 sovereign nodes." },
+        { lvl: "INFO", ev: "LEDGER_VERIFY", d: "Atomic HMAC-SHA256 signature chain validated for block #99214." },
+        { lvl: "WARN", ev: "SPOT_ARBITRAGE", d: "H100 SXM5 pool capacity above 85% in Ashburn." }
+      ];
+      auditSimTimer = setInterval(() => {
+        if (APP.auditPaused || document.visibilityState === "hidden") return;
+        const r = evs[Math.floor(Math.random() * evs.length)];
+        addAuditEntry(r.lvl, r.ev, r.d, null, true);
+      }, 1200);
+    }
+
+    // 6. CLUSTERS (Allocator, Table, Calculator Widget)
+    function updateAllocatorEstimate() {
+      const modelSel = document.getElementById("alloc-model");
+      const nodeNum = document.getElementById("alloc-node-num");
+      const termSel = document.getElementById("alloc-term");
+      if (!modelSel || !nodeNum || !termSel) return;
+
+      const opt = modelSel.selectedOptions[0];
+      const cuPerGpu = parseInt(opt.getAttribute("data-cu") || "194", 10);
+      const baselineUsdPerGpu = parseFloat(opt.getAttribute("data-baseline") || "3.23");
+      const nodes = parseInt(nodeNum.value, 10) || 1;
+      const gpus = nodes * 8;
+
+      const discount = parseFloat(termSel.selectedOptions[0]?.getAttribute("data-discount") || "0");
+      const effCu = Math.round(cuPerGpu * (1 - discount));
+      const totalCu = effCu * gpus;
+      const totalUsd = totalCu / 100;
+      const total24hCu = totalCu * 24;
+
+      const baseUsd = baselineUsdPerGpu * gpus;
+      const savingsPct = Math.round(((baseUsd - totalUsd) / baseUsd) * 100);
+
+      document.getElementById("alloc-accel-count").textContent = gpus;
+      document.getElementById("alloc-calc-rate").textContent = `${totalCu.toLocaleString()} CU/hr ($${totalUsd.toFixed(2)}/hr)`;
+      document.getElementById("alloc-calc-baseline").textContent = `Ref baseline: $${baseUsd.toFixed(2)}/hr · ${savingsPct}% savings`;
+      document.getElementById("alloc-calc-24h").textContent = `${total24hCu.toLocaleString()} CU ($${(total24hCu / 100).toFixed(2)})`;
+      document.getElementById("alloc-calc-avail").textContent = `${APP.balance.available_cu.toLocaleString()} CU`;
+
+      const errEl = document.getElementById("alloc-error-msg");
+      const btn = document.getElementById("btn-submit-provision");
+      if (totalCu > APP.balance.available_cu) {
+        if (errEl) { errEl.textContent = `Error: 1-hour cost (${totalCu} CU) exceeds available balance (${APP.balance.available_cu} CU).`; errEl.style.display = "block"; }
+        if (btn) btn.disabled = true;
+      } else {
+        if (errEl) errEl.style.display = "none";
+        if (btn) btn.disabled = false;
+      }
+
+      updateTryItBody();
+    }
+
+    function updateJobCostCalculator() {
+      const model = document.getElementById("calc-widget-model");
+      const gpusInput = document.getElementById("calc-widget-gpus");
+      const hoursInput = document.getElementById("calc-widget-hours");
+      if (!model || !gpusInput || !hoursInput) return;
+
+      const cuPerGpu = parseInt(model.selectedOptions[0].getAttribute("data-cu") || "194", 10);
+      const basePerGpu = parseFloat(model.selectedOptions[0].getAttribute("data-baseline") || "3.23");
+      const gpus = parseInt(gpusInput.value, 10) || 1;
+      const hours = parseInt(hoursInput.value, 10) || 1;
+
+      const totalCu = cuPerGpu * gpus * hours;
+      const totalUsd = totalCu / 100;
+      const baseUsd = basePerGpu * gpus * hours;
+      const diffUsd = Math.max(0, baseUsd - totalUsd);
+
+      document.getElementById("calc-widget-output").textContent = `${totalCu.toLocaleString()} CU ($${totalUsd.toFixed(2)})`;
+      document.getElementById("calc-widget-savings").textContent = `Saves $${diffUsd.toFixed(2)} vs baseline reference`;
+    }
+
+    function renderClustersTable() {
+      const tbody = document.getElementById("tbody-clusters");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+
+      const activeCount = APP.clusters.filter(c => c.status === "RUNNING" || c.status === "PROVISIONING").length;
+      const badge = document.getElementById("badge-cluster-count");
+      if (badge) { badge.textContent = activeCount; badge.style.display = activeCount > 0 ? "inline" : "none"; }
+
+      if (APP.clusters.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="11" style="text-align:center;padding:2rem;color:var(--text2);">
+              No active clusters yet. Allocate your first cluster.
+              <div style="margin-top:0.5rem;"><button type="button" class="btn-primary" onclick="document.getElementById('alloc-model').focus();">ALLOCATE</button></div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      APP.clusters.forEach(c => {
+        const demoBadge = c.demo ? `<span style="padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;background:rgba(255,176,32,0.15);color:var(--warn);border:1px solid var(--warn);margin-left:4px;" title="${c.notice || 'Simulated cluster: no real hardware or charges.'}">DEMO</span>` : '';
+        const noticeTip = c.notice ? `title="${c.notice}"` : '';
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><span style="font-weight:700;color:var(--cyan);">${c.id}</span>${demoBadge}</td>
+          <td>${c.model} x ${c.nodes} (${c.nodes * 8} GPUs)</td>
+          <td>${c.region}</td>
+          <td><span style="padding:2px 6px;border-radius:4px;font-size:11px;font-weight:700;background:${c.status === 'RUNNING' ? 'rgba(16,185,129,0.15)' : 'rgba(0,240,255,0.15)'};color:${c.status === 'RUNNING' ? 'var(--green)' : 'var(--cyan)'};" ${noticeTip}>${c.status}</span></td>
+          <td style="color:${(c.latency || 14) <= 18 ? 'var(--cyan)' : 'var(--warn)'};">${c.latency || 14}ms</td>
+          <td><span style="color:var(--green);font-weight:700;">● ${c.nodes_ok || c.nodes}</span></td>
+          <td>${c.uptime || '0h 01m'}</td>
+          <td>${(c.burn_cu || c.burn_cu_hr || 0).toLocaleString()} CU/hr</td>
+          <td>${(c.accrued_cu || 0).toLocaleString()} CU</td>
+          <td><button type="button" class="btn-secondary" style="font-size:11px;padding:2px 6px;" onclick="copyText('ssh ubuntu@${c.host}', 'SSH command copied')">COPY SSH</button></td>
+          <td><button type="button" class="btn-secondary" style="border-color:var(--bad);color:var(--bad);font-size:11px;padding:2px 6px;" onclick="openReleaseModal('${c.id}')">RELEASE</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    let clusterToRelease = null;
+    function openReleaseModal(id) {
+      clusterToRelease = id;
+      document.getElementById("release-target-id").textContent = id;
+      const inp = document.getElementById("release-input-confirm");
+      inp.value = "";
+      document.getElementById("btn-confirm-release").disabled = true;
+      openModal("modal-release");
+      inp.focus();
+    }
+
+    async function executeClusterRelease() {
+      if (!clusterToRelease) return;
+      const id = clusterToRelease;
+      if (DATA_DOMAINS.health === "LIVE") {
+        const res = await api(`/v1/clusters/${id}`, { method: "DELETE" });
+        if (res.ok) { notify(`Cluster ${id} released.`, "success"); fetchClusters(); }
+        else notify(`Release failed: ${res.error}`, "error");
+      } else {
+        APP.clusters = APP.clusters.filter(c => c.id !== id);
+        notify(`Cluster ${id} released (SIMULATED mode).`, "warn");
+        addAuditEntry("INFO", "RELEASE", `[SIM] Released cluster ${id}.`);
+        renderClustersTable();
+      }
+      closeModal("modal-release");
+      clusterToRelease = null;
+    }
+
+    async function submitProvisionCluster(e) {
+      e.preventDefault();
+      const model = document.getElementById("alloc-model").value;
+      const region = document.getElementById("alloc-region").value;
+      const nodes = parseInt(document.getElementById("alloc-node-num").value, 10);
+      const term = document.getElementById("alloc-term").value;
+      const jurisdiction = document.getElementById("alloc-pin-jurisdiction").checked ? document.getElementById("alloc-jurisdiction-val").value : null;
+      const ssh_key_id = document.getElementById("alloc-ssh-key").value;
+
+      if (DATA_DOMAINS.health === "LIVE") {
+        const res = await api("/v1/clusters/provision", {
+          method: "POST",
+          headers: { "Idempotency-Key": crypto.randomUUID() },
+          body: JSON.stringify({ model, region, nodes, term, jurisdiction, ssh_key_id })
+        });
+        if (res.ok && res.data) {
+          notify(`Provisioned cluster ${res.data.id || "OK"}`, "success");
+          fetchClusters(); fetchBalance();
+        } else notify(`Provisioning failed: ${res.error}`, "error");
+      } else {
+        const demoId = "cls-demo-" + Math.random().toString(36).substring(2, 7);
+        const opt = document.getElementById("alloc-model").selectedOptions[0];
+        const cuPerGpu = parseInt(opt.getAttribute("data-cu") || "194", 10);
+        APP.clusters.unshift({
+          id: demoId, model, nodes, region, status: "PROVISIONING", latency: 14.2,
+          nodes_ok: nodes, nodes_warn: 0, nodes_bad: 0, uptime: "0h 01m", burn_cu: cuPerGpu * nodes * 8, accrued_cu: 0, host: `demo-${demoId}.sovereign.mesh`
+        });
+        notify("Demo cluster allocated (SIMULATED mode: no real resources or charges).", "warn");
+        addAuditEntry("INFO", "PROVISION", `[SIM] Launched demo cluster ${demoId}.`);
+        renderClustersTable();
+      }
+    }
+
+    // 7. BILLING & PAYPAL
+    async function fetchClusters() {
+      if (DATA_DOMAINS.health === "LIVE" && AUTH_STATE.signedIn) {
+        const res = await api("/v1/clusters");
+        if (res.ok && Array.isArray(res.data)) {
+          DATA_DOMAINS.clusters = "LIVE";
+          APP.clusters = res.data;
+          renderClustersTable();
+          renderBalanceCards();
+          updateSourcePills();
+          return;
+        }
+      }
+      DATA_DOMAINS.clusters = "SIMULATED";
+      renderClustersTable();
+      renderBalanceCards();
+      updateSourcePills();
+    }
+
+    async function fetchLedger() {
+      if (DATA_DOMAINS.health === "LIVE" && AUTH_STATE.signedIn) {
+        const res = await api("/v1/billing/ledger");
+        if (res.ok && Array.isArray(res.data)) {
+          DATA_DOMAINS.ledger = "LIVE";
+          APP.ledgerEntries = res.data;
+          renderLedgerTable();
+          updateSourcePills();
+          return;
+        }
+      }
+      DATA_DOMAINS.ledger = "SIMULATED";
+      renderLedgerTable();
+      updateSourcePills();
+    }
+
+    async function fetchBalance() {
+      if (DATA_DOMAINS.health === "LIVE" && AUTH_STATE.signedIn) {
+        const resBal = await api("/v1/billing/balance");
+        const resSum = await api("/v1/billing/summary");
+        if (resBal.ok && resBal.data) {
+          DATA_DOMAINS.balance = "LIVE";
+          APP.balance.available_cu = resBal.data.available_cu || 0;
+          APP.balance.reserved_cu = resBal.data.reserved_cu || 0;
+          APP.balance.active_clusters = resBal.data.active_clusters || 0;
+        }
+        if (resSum.ok && resSum.data) {
+          APP.balance.savings_usd = (resSum.data.savings_usd_cents || 0) / 100;
+        }
+      } else {
+        DATA_DOMAINS.balance = "SIMULATED";
+      }
+      renderBalanceCards();
+      updateSourcePills();
+    }
+
+    function renderBalanceCards() {
+      const activeCount = APP.clusters.filter(c => c.status === "RUNNING" || c.status === "PROVISIONING").length;
+      APP.balance.active_clusters = activeCount;
+
+      const cu = APP.balance.available_cu;
+      const usdStr = `$${(cu / 100).toFixed(2)}`;
+
+      document.getElementById("val-balance").textContent = `◆ ${cu.toLocaleString()} CU · ${usdStr}`;
+      document.getElementById("card-val-balance-cu").textContent = `${cu.toLocaleString()} CU`;
+      document.getElementById("card-val-balance-usd").innerHTML = `≈ ${usdStr} USD <span style="color:var(--muted);">($1.00 = 100 CU)</span>`;
+      document.getElementById("card-val-escrow-cu").textContent = `${APP.balance.reserved_cu.toLocaleString()} CU`;
+      document.getElementById("card-val-escrow-sub").textContent = `≈ $${(APP.balance.reserved_cu / 100).toFixed(2)} USD (${activeCount} active clusters)`;
+      document.getElementById("card-val-savings").textContent = `$${APP.balance.savings_usd.toFixed(2)}`;
+
+      const badge = document.getElementById("badge-cluster-count");
+      if (badge) {
+        badge.textContent = activeCount;
+        badge.style.display = activeCount > 0 ? "inline" : "none";
+      }
+    }
+
+    async function fetchSecurityStatus() {
+      if (DATA_DOMAINS.health === "LIVE") {
+        const res = await api("/v1/billing/security");
+        if (res.ok && res.data) {
+          DATA_DOMAINS.security = "LIVE";
+          const allOk = res.data.rls_enabled === true && Array.isArray(res.data.tables) && res.data.tables.every(t => t.rls === true);
+          document.getElementById("card-val-rls").textContent = allOk ? "RLS ENFORCED" : "PARTIAL";
+          document.getElementById("card-val-rls").className = `metric-value ${allOk ? 'chip-green' : 'chip-warn'}`;
+          document.getElementById("card-val-rls-tables").textContent = res.data.tables.map(t => `${t.name}: ${t.rls ? '✓' : '✗'}`).join(" | ");
+          return;
+        }
+      }
+      DATA_DOMAINS.security = "SIMULATED";
+      document.getElementById("card-val-rls").textContent = "UNKNOWN";
+      document.getElementById("card-val-rls").className = "metric-value chip-grey";
+      document.getElementById("card-val-rls-tables").textContent = "Unreachable: could not verify Supabase RLS state";
+    }
+
+    async function fetchPublicConfig() {
+      const resC = await api("/v1/config/public");
+      if (resC.ok && resC.data) {
+        APP.paypalClientId = resC.data.paypal_client_id;
+        APP.paymentsEnabled = resC.data.payments_enabled === true;
+        APP.demoMode = resC.data.demo_mode === true;
+        APP.paypalEnv = resC.data.paypal_env || "sandbox";
+
+        // Sandbox badge on billing deposit panel
+        const sBox = document.getElementById("badge-paypal-sandbox");
+        if (sBox) sBox.style.display = APP.paypalEnv === "sandbox" ? "inline-block" : "none";
+
+        // Payments disabled banner & buttons
+        const disBanner = document.getElementById("payments-disabled-banner");
+        if (disBanner) disBanner.style.display = APP.paymentsEnabled ? "none" : "block";
+
+        document.querySelectorAll(".btn-pack-deposit").forEach(btn => {
+          if (!APP.paymentsEnabled) {
+            btn.disabled = true;
+            btn.title = "Payments are disabled in demo mode.";
+          } else {
+            btn.disabled = false;
+            btn.title = "";
+          }
+        });
+      }
+      const resW = await api("/v1/webhooks/paypal/status");
+      const wEl = document.getElementById("val-webhook-status");
+      if (resW.ok && resW.data) {
+        APP.paypalConfigured = resW.data.configured === true;
+        if (wEl) {
+          wEl.textContent = APP.paypalConfigured ? "CONFIGURED" : "NOT CONFIGURED";
+          wEl.className = APP.paypalConfigured ? "chip-green" : "chip-warn";
+        }
+      } else if (wEl) {
+        wEl.textContent = "UNKNOWN";
+        wEl.className = "chip-grey";
+      }
+    }
+
+    function openDepositModal(packKey, usd, cu) {
+      if (!AUTH_STATE.signedIn) {
+        notify("Please sign in to make deposits.", "warn");
+        openModal("modal-signin");
+        return;
+      }
+      if (!APP.paymentsEnabled) {
+        notify("Payments are disabled in demo mode.", "warn");
+        return;
+      }
+      document.getElementById("modal-pack-name").textContent = `${packKey.toUpperCase()} TIER`;
+      document.getElementById("modal-pack-usd").textContent = `$${usd.toFixed(2)} USD`;
+      document.getElementById("modal-pack-cu").textContent = `+${cu.toLocaleString()} Compute Units`;
+      openModal("modal-deposit");
+
+      const bContainer = document.getElementById("paypal-button-container");
+      const simMsg = document.getElementById("paypal-simulated-msg");
+
+      if (APP.paypalClientId && DATA_DOMAINS.health === "LIVE") {
+        if (simMsg) simMsg.style.display = "none";
+        bContainer.style.display = "block";
+        loadPayPalSdk(packKey);
+      } else {
+        bContainer.style.display = "none";
+        bContainer.innerHTML = "";
+        if (simMsg) simMsg.style.display = "block";
+      }
+    }
+
+    function loadPayPalSdk(packKey) {
+      const c = document.getElementById("paypal-button-container");
+      c.innerHTML = "";
+      if (window.paypal && window.paypal.Buttons) { renderPayPalBtn(packKey); return; }
+      const s = document.createElement("script");
+      s.src = `https://www.paypal.com/sdk/js?client-id=${APP.paypalClientId}&currency=USD&intent=capture`;
+      s.async = true;
+      s.onload = () => renderPayPalBtn(packKey);
+      s.onerror = () => { c.innerHTML = '<div style="color:var(--bad);font-size:11px;">Failed to load PayPal SDK.</div>'; };
+      document.head.appendChild(s);
+    }
+
+    function renderPayPalBtn(packKey) {
+      const c = document.getElementById("paypal-button-container");
+      if (!c || !window.paypal?.Buttons) return;
+      window.paypal.Buttons({
+        style: { layout: "vertical", color: "blue", shape: "rect" },
+        createOrder: async () => {
+          const res = await api("/v1/billing/paypal/create-order", {
+            method: "POST", headers: { "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ pack: packKey })
+          });
+          if (res.ok && res.data?.order_id) return res.data.order_id;
+          notify(`PayPal order creation failed: ${res.error}`, "error");
+          throw new Error(res.error);
+        },
+        onApprove: async (data) => {
+          notify("Payment authorized. Confirming settlement...", "info");
+          const res = await api("/v1/billing/paypal/capture", { method: "POST", body: JSON.stringify({ order_id: data.orderID }) });
+          if (res.ok && res.data?.status === "credited") {
+            notify(`Confirmed: +${res.data.cu_credited} CU credited!`, "success");
+            fetchBalance(); fetchLedger(); closeModal("modal-deposit");
+          } else notify(`Settlement rejected: ${res.error}`, "error");
+        }
+      }).render(c);
+    }
+
+    function renderLedgerTable() {
+      const tbody = document.getElementById("tbody-ledger");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+
+      const activeFilter = safeGetItem("ledger_filter") || "ALL";
+      const filtered = APP.ledgerEntries.filter(e => activeFilter === "ALL" || e.type.toUpperCase() === activeFilter);
+
+      filtered.forEach(tx => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><span style="color:var(--cyan);font-weight:700;">${tx.id}</span></td>
+          <td>${formatTimestamp(tx.ts)}</td>
+          <td>${tx.type}</td>
+          <td>${tx.debit}</td>
+          <td>${tx.credit}</td>
+          <td style="font-weight:700;color:${tx.amount_cu > 0 ? 'var(--green)' : 'var(--text)'};">${tx.amount_cu > 0 ? '+' : ''}${tx.amount_cu.toLocaleString()} CU</td>
+          <td>$${Math.abs(tx.usd).toFixed(2)}</td>
+          <td style="font-size:11px;">${tx.ref}</td>
+          <td>${tx.balance_cu.toLocaleString()} CU</td>
+          <td>
+            <button type="button" class="btn-secondary" style="font-size:11px;padding:2px 6px;color:${tx.hmac_verified ? 'var(--cyan)' : 'var(--bad)'};" onclick='openSigPopover(${JSON.stringify(tx)})'>
+              ${tx.hmac_verified ? 'HMAC-SHA256 ✓' : '✗ FAILED'}
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      updateLedgerSigningChip();
+    }
+
+    function formatTimestamp(isoStr) {
+      const d = new Date(isoStr);
+      const is24h = safeGetItem("pref_time_format") !== "local";
+      return is24h ? d.toISOString().replace("T", " ").substring(0, 19) + " UTC" : d.toLocaleString();
+    }
+
+    function openSigPopover(tx) {
+      document.getElementById("sig-popover-content").innerHTML = `
+        <div style="display:flex;justify-content:space-between;"><span>Entry ID:</span><strong style="color:var(--cyan);">${tx.id}</strong></div>
+        <div style="display:flex;justify-content:space-between;"><span>Algorithm:</span><strong>${tx.hmac_algo || "HMAC-SHA256"}</strong></div>
+        <div style="display:flex;justify-content:space-between;"><span>Key ID:</span><code>${tx.hmac_kid || "prod-ledger-key-01"}</code></div>
+        <div style="display:flex;justify-content:space-between;"><span>Signature Prefix:</span><code>${tx.sig_prefix || "9e41b2c801a7"}...</code></div>
+        <div style="display:flex;justify-content:space-between;"><span>Server Status:</span><strong style="color:${tx.hmac_verified ? 'var(--green)' : 'var(--bad)'};">${tx.hmac_verified ? 'CRYPTOGRAPHICALLY VALID' : 'FAILED'}</strong></div>
+        <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:0.5rem;">Signature verified server-side by the ledger service.</div>
+      `;
+      openModal("modal-sig-popover");
+    }
+
+    function exportLedgerCsv() {
+      const headers = ["Entry ID", "Timestamp UTC", "Type", "Debit", "Credit", "Amount CU", "USD Value", "Settlement Ref", "Balance CU", "HMAC Verified"];
+      const rows = APP.ledgerEntries.map(e => [e.id, e.ts, e.type, e.debit, e.credit, e.amount_cu, e.usd, e.ref, e.balance_cu, e.hmac_verified ? "TRUE" : "FALSE"]);
+      const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `apexsovereign_ledger_${Date.now()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      notify("Exported ledger entries to CSV.", "success");
+    }
+
+    // 8. DOCS / API (Key Gen, Snippets, Try-It, Ref)
+    async function generateApiKey() {
+      const label = document.getElementById("input-key-label")?.value.trim() || "default-token";
+      if (DATA_DOMAINS.health === "LIVE") {
+        const res = await api("/v1/keys", { method: "POST", body: JSON.stringify({ label }) });
+        if (res.ok && res.data) {
+          revealGeneratedKey(res.data.key_id, res.data.secret, label, false);
+          notify("API Key provisioned live.", "success");
+          return;
+        }
+      }
+      DATA_DOMAINS.keys = "SIMULATED";
+      const charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+      const bytes = new Uint8Array(32);
+      crypto.getRandomValues(bytes);
+      let randSecret = "sk_live_apex_";
+      for (let i = 0; i < bytes.length; i++) randSecret += charset[bytes[i] % charset.length];
+      const keyId = "key_" + crypto.randomUUID();
+      revealGeneratedKey(keyId, randSecret, label, true);
+      notify("Enterprise-format key generated locally (not persisted or sent to the server).", "warn");
+    }
+
+    function revealGeneratedKey(keyId, secret, label, isSim = false) {
+      MEMORY_SECRETS.activeApiKey = secret;
+      MEMORY_SECRETS.activeApiKeyId = keyId;
+      const masked = secret.substring(0, 9) + "••••••••" + secret.slice(-4);
+      MEMORY_SECRETS.savedKeys.unshift({ key_id: keyId, label, masked, created_at: new Date().toISOString(), is_sim: isSim });
+
+      const box = document.getElementById("secret-reveal-box");
+      const inp = document.getElementById("revealed-secret-val");
+      if (box && inp) { inp.value = secret; box.style.display = "block"; }
+      renderApiKeysTable();
+      updateCodeSnippet();
+      updateSourcePills();
+    }
+
+    function renderApiKeysTable() {
+      const tbody = document.getElementById("tbody-keys");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+      MEMORY_SECRETS.savedKeys.forEach(k => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><span style="color:var(--cyan);font-weight:700;">${k.key_id}</span></td>
+          <td>${k.label}</td>
+          <td><code>${k.masked}</code></td>
+          <td>${k.created_at.substring(0, 19).replace("T", " ")}</td>
+          <td><span style="color:${k.is_sim ? 'var(--warn)' : 'var(--green)'};">${k.is_sim ? 'DEMO KEY' : 'ACTIVE'}</span></td>
+          <td><button type="button" class="btn-secondary" style="font-size:10px;padding:2px 6px;" onclick="revokeKey('${k.key_id}')">REVOKE</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function revokeKey(keyId) {
+      MEMORY_SECRETS.savedKeys = MEMORY_SECRETS.savedKeys.filter(x => x.key_id !== keyId);
+      if (MEMORY_SECRETS.activeApiKeyId === keyId) { MEMORY_SECRETS.activeApiKey = ""; MEMORY_SECRETS.activeApiKeyId = ""; }
+      renderApiKeysTable(); updateCodeSnippet(); updateSourcePills();
+      notify("Key revoked and scrubbed from memory.", "info");
+    }
+
+    function updateCodeSnippet() {
+      const pre = document.getElementById("snippet-code-display");
+      if (!pre) return;
+      const lang = safeGetItem("snippet_lang") || "curl";
+      const keyVal = (document.getElementById("check-use-key-in-examples")?.checked && MEMORY_SECRETS.activeApiKey) ? MEMORY_SECRETS.activeApiKey : "<YOUR_API_KEY>";
+      const origin = window.location.origin || "https://apexsovereign.ai";
+      const m = APP.allocator.model;
+      const r = APP.allocator.region;
+      const n = APP.allocator.nodes;
+      const t = APP.allocator.term;
+
+      let code = "";
+      if (lang === "curl") {
+        code = `# 1. Provision bare-metal cluster via mesh gateway\ncurl -X POST "${origin}/v1/clusters/provision" \\\n  -H "Authorization: Bearer ${keyVal}" \\\n  -H "Idempotency-Key: ${crypto.randomUUID()}" \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "model": "${m}",\n    "region": "${r}",\n    "nodes": ${n},\n    "term": "${t}"\n  }'`;
+      } else if (lang === "python") {
+        code = `import requests, uuid\n\nres = requests.post(\n    "${origin}/v1/clusters/provision",\n    json={"model": "${m}", "region": "${r}", "nodes": ${n}, "term": "${t}"},\n    headers={"Authorization": "Bearer ${keyVal}", "Idempotency-Key": str(uuid.uuid4())}\n)\nprint("Cluster Allocated:", res.json())`;
+      } else if (lang === "node") {
+        code = `const res = await fetch("${origin}/v1/clusters/provision", {\n  method: "POST",\n  headers: { "Authorization": "Bearer ${keyVal}", "Idempotency-Key": crypto.randomUUID(), "Content-Type": "application/json" },\n  body: JSON.stringify({ model: "${m}", region: "${r}", nodes: ${n}, term: "${t}" })\n});\nconsole.log(await res.json());`;
+      } else if (lang === "rust") {
+        code = `use reqwest::Client;
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), reqwest::Error> {
+    let response = Client::new()
+        .post("${origin}/v1/clusters/provision")
+        .bearer_auth("${keyVal}")
+        .header("Idempotency-Key", uuid::Uuid::new_v4().to_string())
+        .json(&json!({"model":"${m}","region":"${r}","nodes":${n},"term":"${t}"}))
+        .send().await?;
+    println!("{}", response.text().await?);
+    Ok(())
+}`;
+      }
+      pre.innerHTML = `<code>${code.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code>`;
+    }
+
+    function updateTryItBody() {
+      const ta = document.getElementById("tryit-request-body");
+      if (ta) {
+        ta.value = JSON.stringify({
+          model: APP.allocator.model,
+          region: APP.allocator.region,
+          nodes: APP.allocator.nodes,
+          term: APP.allocator.term,
+          jurisdiction: APP.allocator.jurisdictionPinned ? APP.allocator.jurisdiction : null
+        }, null, 2);
+      }
+    }
+
+    async function sendTryItRequest() {
+      const ta = document.getElementById("tryit-request-body");
+      const respBox = document.getElementById("tryit-response-box");
+      const statusEl = document.getElementById("tryit-resp-status");
+      const bodyEl = document.getElementById("tryit-resp-body");
+      if (!ta || !respBox) return;
+
+      try {
+        const payload = JSON.parse(ta.value);
+        const t0 = performance.now();
+        const res = await api("/v1/clusters/provision", { method: "POST", body: JSON.stringify(payload) });
+        const rtt = (performance.now() - t0).toFixed(1);
+
+        respBox.style.display = "block";
+        statusEl.textContent = `STATUS: ${res.status} OK (${rtt}ms RTT)`;
+        statusEl.style.color = res.ok ? "var(--green)" : "var(--bad)";
+        bodyEl.textContent = JSON.stringify(res.data || res.error, null, 2);
+      } catch (err) {
+        notify("Invalid JSON payload", "error");
+      }
+    }
+
+    function populateApiReferenceTable() {
+      const tbody = document.getElementById("tbody-api-ref");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+      const eps = [
+        { method: "GET", path: "/health", auth: "None", desc: "System health check, engine runtime, version, and SLA probe." },
+        { method: "GET", path: "/v1/config/public", auth: "None", desc: "Public billing configuration and paypal_client_id." },
+        { method: "GET", path: "/v1/market/spot", auth: "Optional", desc: "Real-time GPU spot arbitrage matrix and 24h history." },
+        { method: "GET", path: "/v1/mesh/nodes", auth: "None", desc: "Global node mesh topology, RTT latency, and available accelerators." },
+        { method: "GET", path: "/v1/audit/stream", auth: "Bearer", desc: "Server-Sent Events (SSE) execution audit telemetry stream." },
+        { method: "GET", path: "/v1/clusters", auth: "Bearer", desc: "List all active, provisioning, and released compute clusters." },
+        { method: "POST", path: "/v1/clusters/provision", auth: "Bearer", desc: "Atomic cluster allocation with Idempotency-Key support." },
+        { method: "PATCH", path: "/v1/clusters/{id}", auth: "Bearer", desc: "Dynamically scale node count (0-64) for active cluster." },
+        { method: "DELETE", path: "/v1/clusters/{id}", auth: "Bearer", desc: "Decommission cluster, tear down fabrics, return unburned escrow." },
+        { method: "GET", path: "/v1/ssh-keys", auth: "Bearer", desc: "List saved OpenSSH public keys and SHA256 fingerprints." },
+        { method: "POST", path: "/v1/ssh-keys", auth: "Bearer", desc: "Register OpenSSH public key for injection into clusters." },
+        { method: "GET", path: "/v1/keys", auth: "Bearer", desc: "List registered API credentials and active scopes." },
+        { method: "POST", path: "/v1/keys", auth: "Bearer", desc: "Issue new sovereign API token (secret revealed exactly once)." },
+        { method: "GET", path: "/v1/billing/balance", auth: "Bearer", desc: "Supabase double-entry liquid balance and escrow runtime capacity." },
+        { method: "GET", path: "/v1/billing/summary", auth: "Bearer", desc: "Month-to-date realized arbitrage savings in USD." },
+        { method: "GET", path: "/v1/billing/ledger", auth: "Bearer", desc: "Paginated immutable double-entry ledger with HMAC signatures." },
+        { method: "GET", path: "/v1/billing/security", auth: "Bearer", desc: "Supabase Postgres Row-Level Security (RLS) enforcement status." },
+        { method: "POST", path: "/v1/billing/paypal/create-order", auth: "Bearer", desc: "Generate PayPal order ID with server-controlled pack amount." },
+        { method: "POST", path: "/v1/billing/paypal/capture", auth: "Bearer", desc: "Capture approved PayPal order and execute atomic CU credit write." },
+        { method: "POST", path: "/v1/webhooks/paypal", auth: "Signature", desc: "PayPal webhook receiver verified server-side with PayPal certs." },
+        { method: "GET", path: "/v1/webhooks/paypal/status", auth: "Bearer", desc: "Verify webhook listener registration and active secret status." }
+      ];
+      eps.forEach(ep => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><span style="font-weight:700;color:${ep.method === 'POST' ? 'var(--cyan)' : (ep.method === 'DELETE' ? 'var(--bad)' : 'var(--green)')};">${ep.method}</span></td>
+          <td><code>${ep.path}</code></td>
+          <td style="font-size:11px;color:${ep.auth === 'None' ? 'var(--muted)' : 'var(--text)'};">${ep.auth}</td>
+          <td>${ep.desc}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 9. COMMAND PALETTE (Ctrl+K)
+    const PALETTE_ACTIONS = [
+      { name: "Go to Terminal", desc: "Switch to live War-Room rate matrix", action: () => switchTab("terminal") },
+      { name: "Go to Clusters", desc: "Manage and allocate GPU nodes", action: () => switchTab("clusters") },
+      { name: "Go to Billing", desc: "Inspect Supabase ledger & top up CU", action: () => switchTab("billing") },
+      { name: "Go to Docs / API", desc: "Inspect endpoints & issue API keys", action: () => switchTab("docs") },
+      { name: "Allocate H100 SXM5", desc: "Quick-allocate 8x H100 cluster", action: () => { APP.allocator.model = "H100 SXM5"; switchTab("clusters"); } },
+      { name: "Allocate B200 NVL72", desc: "Quick-allocate B200 cluster", action: () => { APP.allocator.model = "B200 NVL72"; switchTab("clusters"); } },
+      { name: "Deposit $500 Enterprise Pack", desc: "Top up +50,000 Compute Units", action: () => openDepositModal("enterprise", 500, 50000) },
+      { name: "Export Ledger CSV", desc: "Download double-entry transactions", action: exportLedgerCsv },
+      { name: "Toggle Rate Matrix Pause", desc: "Pause/resume live tick poll", action: () => document.getElementById("btn-toggle-market-pause")?.click() },
+      { name: "Open SSH Key Manager", desc: "Configure OpenSSH public keys", action: () => openModal("modal-ssh") },
+      { name: "Open Settings", desc: "UI density, motion, and time format", action: () => toggleDrawer("drawer-settings", true) }
+    ];
+
+    let paletteSelectedIndex = 0;
+    function renderPaletteResults(query = "") {
+      const container = document.getElementById("palette-results-list");
+      if (!container) return;
+      container.innerHTML = "";
+      const q = query.toLowerCase().trim();
+      const filtered = PALETTE_ACTIONS.filter(a => !q || a.name.toLowerCase().includes(q) || a.desc.toLowerCase().includes(q));
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="color:var(--text2);padding:0.75rem;font-size:12px;">No matching actions found.</div>';
+        return;
+      }
+      filtered.forEach((act, idx) => {
+        const item = document.createElement("div");
+        item.style.padding = "0.5rem 0.75rem";
+        item.style.borderRadius = "0.375rem";
+        item.style.cursor = "pointer";
+        item.style.background = idx === paletteSelectedIndex ? "rgba(0,240,255,0.15)" : "transparent";
+        item.style.border = idx === paletteSelectedIndex ? "1px solid var(--cyan)" : "1px solid transparent";
+        item.innerHTML = `
+          <div style="font-weight:700;color:#FFFFFF;font-size:13px;">${act.name}</div>
+          <div style="font-size:11px;color:var(--text2);">${act.desc}</div>
+        `;
+        item.addEventListener("click", () => {
+          closeModal("modal-palette");
+          act.action();
+        });
+        container.appendChild(item);
+      });
+    }
+
+    // 10. NAVIGATION, MODALS & SHORTCUTS
+    function switchTab(name) {
+      const valid = ["terminal", "clusters", "billing", "docs"];
+      const dest = valid.includes(name) ? name : "terminal";
+      APP.activeTab = dest;
+
+      document.querySelectorAll(".nav-tab-btn").forEach(b => {
+        const m = b.getAttribute("data-target") === dest;
+        b.classList.toggle("active", m);
+        b.setAttribute("aria-selected", m ? "true" : "false");
+      });
+      document.querySelectorAll(".tab-content").forEach(p => {
+        p.classList.toggle("active-panel", p.id === `panel-${dest}`);
+      });
+      if (window.location.hash !== `#/${dest}`) window.history.pushState(null, "", `#/${dest}`);
+      if (dest === "docs") updateCodeSnippet();
+      if (dest === "clusters") updateAllocatorEstimate();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    let lastActiveElement = null;
+    function openModal(id) {
+      const m = document.getElementById(id);
+      if (!m) return;
+      lastActiveElement = document.activeElement;
+      m.classList.add("active-modal");
+      const f = m.querySelectorAll('button, [href], input, select, textarea');
+      if (f.length) f[0].focus();
+    }
+    function closeModal(id) {
+      const m = document.getElementById(id);
+      if (m) m.classList.remove("active-modal");
+      if (lastActiveElement) { lastActiveElement.focus(); lastActiveElement = null; }
+    }
+
+    function toggleDrawer(id, open) {
+      const d = document.getElementById(id);
+      if (d) d.classList.toggle("drawer-open", open !== undefined ? open : !d.classList.contains("drawer-open"));
+    }
+
+    // Keyboard Shortcuts ("g then t/c/b/d", "?", Ctrl+K)
+    let gKeyPressed = false;
+    let gKeyTimeout = null;
+
+    window.addEventListener("keydown", (e) => {
+      const isInput = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName);
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        openModal("modal-palette");
+        const inp = document.getElementById("palette-search-input");
+        if (inp) { inp.value = ""; inp.focus(); }
+        paletteSelectedIndex = 0;
+        renderPaletteResults();
+        return;
+      }
+
+      if (e.key === "Escape") {
+        document.querySelectorAll(".modal-backdrop.active-modal").forEach(m => m.classList.remove("active-modal"));
+        document.querySelectorAll(".side-drawer.drawer-open").forEach(d => d.classList.remove("drawer-open"));
+        document.getElementById("backend-status-popover")?.classList.remove("active");
+        return;
+      }
+
+      if (isInput) return;
+
+      if (e.key === "?") {
+        openModal("modal-shortcuts");
+        return;
+      }
+
+      if (e.key === "g" || e.key === "G") {
+        gKeyPressed = true;
+        clearTimeout(gKeyTimeout);
+        gKeyTimeout = setTimeout(() => { gKeyPressed = false; }, 1000);
+        return;
+      }
+
+      if (gKeyPressed) {
+        gKeyPressed = false;
+        if (e.key === "t") switchTab("terminal");
+        if (e.key === "c") switchTab("clusters");
+        if (e.key === "b") switchTab("billing");
+        if (e.key === "d") switchTab("docs");
+      }
+    });
+
+    // 11. BOOTSTRAP & DOM EVENT LISTENERS
+    document.addEventListener("DOMContentLoaded", () => {
+      window.addEventListener("hashchange", () => switchTab(window.location.hash.replace(/^#\/?/, "")));
+      switchTab(window.location.hash.replace(/^#\/?/, "") || "terminal");
+
+      document.querySelectorAll(".nav-tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => switchTab(btn.getAttribute("data-target")));
+      });
+
+      // Palette events
+      const palInp = document.getElementById("palette-search-input");
+      palInp?.addEventListener("input", (e) => {
+        paletteSelectedIndex = 0;
+        renderPaletteResults(e.target.value);
+      });
+      palInp?.addEventListener("keydown", (e) => {
+        const filtered = PALETTE_ACTIONS.filter(a => !palInp.value || a.name.toLowerCase().includes(palInp.value.toLowerCase()));
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          paletteSelectedIndex = (paletteSelectedIndex + 1) % filtered.length;
+          renderPaletteResults(palInp.value);
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          paletteSelectedIndex = (paletteSelectedIndex - 1 + filtered.length) % filtered.length;
+          renderPaletteResults(palInp.value);
+        } else if (e.key === "Enter" && filtered[paletteSelectedIndex]) {
+          e.preventDefault();
+          closeModal("modal-palette");
+          filtered[paletteSelectedIndex].action();
+        }
+      });
+
+      // Backend Chip Popover toggle
+      const chipBackend = document.getElementById("chip-backend");
+      const popover = document.getElementById("backend-status-popover");
+      chipBackend?.addEventListener("click", (e) => {
+        if (e.target.closest("#backend-status-popover")) return;
+        popover?.classList.toggle("active");
+      });
+
+      // Header Drawer buttons
+      document.getElementById("btn-open-notifications")?.addEventListener("click", () => toggleDrawer("drawer-notifications", true));
+      document.getElementById("btn-close-notifications")?.addEventListener("click", () => toggleDrawer("drawer-notifications", false));
+      document.getElementById("btn-clear-notifications")?.addEventListener("click", () => { APP.notifications = []; updateNotificationsBadge(); });
+
+      document.getElementById("btn-open-settings")?.addEventListener("click", () => toggleDrawer("drawer-settings", true));
+      document.getElementById("btn-close-settings")?.addEventListener("click", () => toggleDrawer("drawer-settings", false));
+
+      document.getElementById("btn-open-palette")?.addEventListener("click", () => {
+        openModal("modal-palette");
+        document.getElementById("palette-search-input")?.focus();
+        paletteSelectedIndex = 0;
+        renderPaletteResults();
+      });
+
+      // Settings toggles
+      const motCb = document.getElementById("setting-reduced-motion");
+      const compCb = document.getElementById("setting-compact-density");
+      const timeCb = document.getElementById("setting-time-format");
+
+      if (safeGetItem("pref_reduced_motion") === "true") { document.body.classList.add("force-reduced-motion"); if (motCb) motCb.checked = true; }
+      if (safeGetItem("pref_compact_density") === "true") { document.body.classList.add("compact-density"); if (compCb) compCb.checked = true; }
+      if (safeGetItem("pref_time_format") === "local") { if (timeCb) timeCb.checked = false; }
+
+      motCb?.addEventListener("change", (e) => {
+        document.body.classList.toggle("force-reduced-motion", e.target.checked);
+        safeSetItem("pref_reduced_motion", e.target.checked ? "true" : "false");
+      });
+      compCb?.addEventListener("change", (e) => {
+        document.body.classList.toggle("compact-density", e.target.checked);
+        safeSetItem("pref_compact_density", e.target.checked ? "true" : "false");
+      });
+      timeCb?.addEventListener("change", (e) => {
+        safeSetItem("pref_time_format", e.target.checked ? "utc" : "local");
+        renderLedgerTable();
+      });
+      document.getElementById("btn-reset-preferences")?.addEventListener("click", () => {
+        try { localStorage.clear(); } catch (_) {}
+        document.body.classList.remove("force-reduced-motion", "compact-density");
+        if (motCb) motCb.checked = false;
+        if (compCb) compCb.checked = false;
+        if (timeCb) timeCb.checked = true;
+        notify("UI preferences reset to defaults.", "info");
+      });
+
+      // Compare mode toggle
+      document.getElementById("btn-toggle-compare")?.addEventListener("click", () => {
+        APP.compareMode = !APP.compareMode;
+        document.getElementById("btn-toggle-compare").classList.toggle("active", APP.compareMode);
+        document.getElementById("compare-mode-container").style.display = APP.compareMode ? "block" : "none";
+        renderCompareDiff();
+        renderMarketCards();
+      });
+
+      document.getElementById("select-matrix-sort")?.addEventListener("change", renderMarketCards);
+
+      // Allocator controls
+      const s = document.getElementById("alloc-node-slider");
+      const n = document.getElementById("alloc-node-num");
+      s?.addEventListener("input", (e) => { n.value = e.target.value; updateAllocatorEstimate(); });
+      n?.addEventListener("input", (e) => { s.value = e.target.value; updateAllocatorEstimate(); });
+      document.getElementById("alloc-model")?.addEventListener("change", updateAllocatorEstimate);
+      document.getElementById("alloc-term")?.addEventListener("change", updateAllocatorEstimate);
+      document.getElementById("alloc-pin-jurisdiction")?.addEventListener("change", (e) => {
+        document.getElementById("jurisdiction-select-wrap").style.display = e.target.checked ? "block" : "none";
+      });
+      document.getElementById("form-allocator")?.addEventListener("submit", submitProvisionCluster);
+
+      // Job Calculator Widget
+      document.getElementById("calc-widget-model")?.addEventListener("change", updateJobCostCalculator);
+      document.getElementById("calc-widget-gpus")?.addEventListener("input", updateJobCostCalculator);
+      document.getElementById("calc-widget-hours")?.addEventListener("input", updateJobCostCalculator);
+
+      // Audit search & filters
+      document.getElementById("input-audit-search")?.addEventListener("input", renderAuditLogs);
+      document.querySelectorAll("#audit-filters button").forEach(b => {
+        b.addEventListener("click", () => { safeSetItem("audit_filter", b.getAttribute("data-filter")); renderAuditLogs(); });
+      });
+      document.getElementById("btn-pause-audit")?.addEventListener("click", () => {
+        APP.auditPaused = !APP.auditPaused;
+        document.getElementById("btn-pause-audit").textContent = APP.auditPaused ? "RESUME" : "PAUSE";
+      });
+      document.getElementById("btn-download-audit")?.addEventListener("click", () => {
+        const text = APP.auditLogs.map(e => `${e.ts}  ${e.level.padEnd(5)}  ${e.event.padEnd(14)}  ${e.detail}  ${e.trace}`).join("\n");
+        const blob = new Blob([text], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = `apexsovereign_audit_${Date.now()}.log`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+      });
+
+      // Cluster release match
+      document.getElementById("release-input-confirm")?.addEventListener("input", (e) => {
+        const b = document.getElementById("btn-confirm-release");
+        const m = e.target.value.trim() === clusterToRelease;
+        if (b) b.disabled = !m;
+        document.getElementById("release-err-msg").style.display = m ? "none" : "block";
+      });
+      document.getElementById("btn-confirm-release")?.addEventListener("click", executeClusterRelease);
+
+      // SSH modal
+      document.getElementById("btn-open-ssh-modal")?.addEventListener("click", () => openModal("modal-ssh"));
+      document.getElementById("btn-save-ssh-key")?.addEventListener("click", () => {
+        const label = document.getElementById("ssh-input-label").value.trim() || "unlabeled-key";
+        const key = document.getElementById("ssh-input-key").value.trim();
+        if (key.includes("PRIVATE KEY")) { notify("Never paste private keys.", "error"); return; }
+        APP.sshKeys.push({ id: "key_" + Math.random().toString(36).substring(2,8), label, fingerprint: "SHA256:verified" });
+        notify("SSH key saved (SIMULATED mode).", "info");
+        closeModal("modal-ssh");
+      });
+
+      // Deposit pack triggers
+      document.querySelectorAll(".btn-pack-deposit").forEach(b => {
+        b.addEventListener("click", () => openDepositModal(b.getAttribute("data-pack"), parseFloat(b.getAttribute("data-usd")), parseInt(b.getAttribute("data-cu"), 10)));
+      });
+
+      // Ledger controls
+      document.querySelectorAll("#ledger-filters button").forEach(b => {
+        b.addEventListener("click", () => { safeSetItem("ledger_filter", b.getAttribute("data-filter")); renderLedgerTable(); });
+      });
+      document.getElementById("btn-export-ledger-csv")?.addEventListener("click", exportLedgerCsv);
+
+      // Docs keys & snippets
+      document.getElementById("btn-generate-key")?.addEventListener("click", generateApiKey);
+      document.getElementById("btn-copy-secret")?.addEventListener("click", () => copyText(document.getElementById("revealed-secret-val")?.value || "", "Secret copied"));
+      document.querySelectorAll("#snippet-lang-tabs button").forEach(b => {
+        b.addEventListener("click", () => { safeSetItem("snippet_lang", b.getAttribute("data-lang")); updateCodeSnippet(); });
+      });
+      document.getElementById("btn-copy-snippet")?.addEventListener("click", () => copyText(document.getElementById("snippet-code-display")?.innerText || "", "Code copied"));
+      document.getElementById("btn-tryit-send")?.addEventListener("click", sendTryItRequest);
+
+      // Dismiss unreachable banner
+      document.getElementById("btn-dismiss-unreachable")?.addEventListener("click", () => {
+        document.getElementById("unreachable-banner").style.display = "none";
+        safeSetItem("banner_dismissed", "true");
+      });
+
+      // Modal close triggers
+      document.querySelectorAll("[data-close]").forEach(b => {
+        b.addEventListener("click", () => closeModal(b.getAttribute("data-close")));
+      });
+
+      // Tab visibility listener: pause polling while hidden, immediate re-check on visible
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+          probeBackendHealth();
+          pollMarket();
+        }
+      });
+
+      // Auth initialization & handlers
+      function updateAuthUI() {
+        const btnIn = document.getElementById("btn-open-signin");
+        const chipUser = document.getElementById("chip-user-email");
+        const valEmail = document.getElementById("val-user-email");
+        const btnOut = document.getElementById("btn-sign-out");
+
+        if (AUTH_STATE.signedIn) {
+          if (btnIn) btnIn.style.display = "none";
+          if (chipUser) chipUser.style.display = "inline-flex";
+          if (valEmail) valEmail.textContent = AUTH_STATE.email || "Authenticated";
+          if (btnOut) btnOut.style.display = "inline-block";
+        } else {
+          if (btnIn) btnIn.style.display = "inline-block";
+          if (chipUser) chipUser.style.display = "none";
+          if (btnOut) btnOut.style.display = "none";
+        }
+      }
+
+      function initAuth() {
+        const savedToken = safeGetItem("apx_session_token");
+        const savedEmail = safeGetItem("apx_user_email");
+        if (savedToken) {
+          AUTH_STATE.signedIn = true;
+          AUTH_STATE.accessToken = savedToken;
+          AUTH_STATE.email = savedEmail || "Operator";
+        }
+        updateAuthUI();
+      }
+
+      document.getElementById("btn-open-signin")?.addEventListener("click", () => {
+        document.getElementById("signin-step-email").style.display = "block";
+        document.getElementById("signin-step-code").style.display = "none";
+        document.getElementById("signin-feedback").style.display = "none";
+        openModal("modal-signin");
+        document.getElementById("signin-email-input")?.focus();
+      });
+
+      document.querySelectorAll(".btn-trigger-signin").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.getElementById("signin-step-email").style.display = "block";
+          document.getElementById("signin-step-code").style.display = "none";
+          document.getElementById("signin-feedback").style.display = "none";
+          openModal("modal-signin");
+          document.getElementById("signin-email-input")?.focus();
+        });
+      });
+
+      document.getElementById("btn-back-email")?.addEventListener("click", () => {
+        document.getElementById("signin-step-email").style.display = "block";
+        document.getElementById("signin-step-code").style.display = "none";
+        document.getElementById("signin-feedback").style.display = "none";
+      });
+
+      document.getElementById("btn-submit-otp")?.addEventListener("click", async () => {
+        const email = document.getElementById("signin-email-input")?.value.trim();
+        const fb = document.getElementById("signin-feedback");
+        if (!email || !email.includes("@")) {
+          if (fb) {
+            fb.textContent = "Please enter a valid email address.";
+            fb.style.display = "block";
+            fb.style.background = "rgba(255,77,106,0.15)";
+            fb.style.color = "var(--bad)";
+          }
+          return;
+        }
+
+        const btn = document.getElementById("btn-submit-otp");
+        btn.disabled = true;
+        btn.textContent = "SENDING...";
+
+        const res = await api("/v1/auth/otp", { method: "POST", body: JSON.stringify({ email }) });
+        btn.disabled = false;
+        btn.textContent = "SEND CODE";
+
+        if (res.ok) {
+          document.getElementById("signin-step-email").style.display = "none";
+          document.getElementById("signin-step-code").style.display = "block";
+          if (fb) {
+            fb.textContent = res.data?.notice || `Verification code sent to ${email}.`;
+            fb.style.display = "block";
+            fb.style.background = "rgba(0,240,255,0.1)";
+            fb.style.color = "var(--cyan)";
+          }
+          document.getElementById("signin-code-input")?.focus();
+        } else {
+          if (fb) {
+            fb.textContent = res.error || "Failed to send verification code.";
+            fb.style.display = "block";
+            fb.style.background = "rgba(255,77,106,0.15)";
+            fb.style.color = "var(--bad)";
+          }
+        }
+      });
+
+      document.getElementById("btn-submit-verify")?.addEventListener("click", async () => {
+        const email = document.getElementById("signin-email-input")?.value.trim();
+        const token = document.getElementById("signin-code-input")?.value.trim();
+        const fb = document.getElementById("signin-feedback");
+        if (!token) {
+          if (fb) {
+            fb.textContent = "Please enter the verification code.";
+            fb.style.display = "block";
+            fb.style.background = "rgba(255,77,106,0.15)";
+            fb.style.color = "var(--bad)";
+          }
+          return;
+        }
+
+        const btn = document.getElementById("btn-submit-verify");
+        btn.disabled = true;
+        btn.textContent = "VERIFYING...";
+
+        const res = await api("/v1/auth/verify", { method: "POST", body: JSON.stringify({ email, token }) });
+        btn.disabled = false;
+        btn.textContent = "VERIFY & PROCEED";
+
+        if (res.ok && res.data?.access_token) {
+          AUTH_STATE.signedIn = true;
+          AUTH_STATE.email = email;
+          AUTH_STATE.accessToken = res.data.access_token;
+          safeSetItem("apx_session_token", res.data.access_token);
+          safeSetItem("apx_user_email", email);
+
+          updateAuthUI();
+          closeModal("modal-signin");
+          notify(`Authenticated as ${email}`, "success");
+
+          fetchBalance();
+          fetchClusters();
+          fetchLedger();
+        } else {
+          if (fb) {
+            fb.textContent = res.error || "Verification failed. Check your code.";
+            fb.style.display = "block";
+            fb.style.background = "rgba(255,77,106,0.15)";
+            fb.style.color = "var(--bad)";
+          }
+        }
+      });
+
+      document.getElementById("btn-sign-out")?.addEventListener("click", () => {
+        AUTH_STATE.signedIn = false;
+        AUTH_STATE.email = "";
+        AUTH_STATE.accessToken = "";
+        try {
+          localStorage.removeItem("apx_session_token");
+          localStorage.removeItem("apx_user_email");
+          sessionStorage.clear();
+        } catch (_) {}
+
+        updateAuthUI();
+        notify("Signed out of session.", "info");
+
+        APP.clusters = [];
+        APP.balance = { available_cu: 0, reserved_cu: 0, active_clusters: 0, savings_usd: 0 };
+        APP.ledgerEntries = [];
+
+        renderClustersTable();
+        renderBalanceCards();
+        renderLedgerTable();
+      });
+
+      // Initial Renders
+      initAuth();
+      initProceduralWorldMap();
+      renderMarketCards();
+      renderClustersTable();
+      renderBalanceCards();
+      renderLedgerTable();
+      populateApiReferenceTable();
+      updateCodeSnippet();
+      updateAllocatorEstimate();
+      updateJobCostCalculator();
+
+      // Start Periodic Loops
+      probeBackendHealth();
+      setInterval(() => { if (document.visibilityState === "visible") void probeBackendHealth(); }, 15000);
+
+      pollMarket();
+      setInterval(() => { if (document.visibilityState === "visible") void pollMarket(); }, 5000);
+
+      startAuditStream();
+      fetchPublicConfig();
+      fetchSecurityStatus();
+      fetchBalance();
+      fetchClusters();
+      fetchLedger();
+    });
+  </script>
+</body>
+</html>

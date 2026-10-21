@@ -1,0 +1,15 @@
+node_modules/
+build/
+dist/
+coverage/
+target/
+.DS_Store
+*.log
+.env*
+!.env.example
+!.env.production.template
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.vercel

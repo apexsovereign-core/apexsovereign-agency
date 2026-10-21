@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+import sys
+import os
+import subprocess
+import re
+
+def main():
+    makefile_path = "Makefile"
+    if not os.path.exists(makefile_path):
+        print(f"make: *** No targets specified and no makefile found. Stop.", file=sys.stderr)
+        sys.exit(2)
+
+    target = sys.argv[1] if len(sys.argv) > 1 else None
+
+    # Read Makefile
+    with open(makefile_path, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+
+    targets = {}
+    current_target = None
+    default_goal = None
+
+    for line in lines:
+        if line.startswith(".DEFAULT_GOAL :="):
+            default_goal = line.split(":=")[1].strip()
+            continue
+
+        target_match = re.match(r"^([a-zA-Z0-9_\-\.]+)\s*:\s*(.*)$", line)
+        if target_match and not line.startswith("\t"):
+            t_name = target_match.group(1)
+            t_deps = [d.strip() for d in target_match.group(2).split() if d.strip() and not d.strip().startswith("##")]
+            current_target = t_name
+            targets[current_target] = {"deps": t_deps, "commands": []}
+            if not default_goal and not current_target.startswith("."):
+                default_goal = current_target
+        elif current_target and (line.startswith("\t") or line.startswith("    ")):
+            cmd = line.strip()
+            if cmd:
+                targets[current_target]["commands"].append(cmd)
+        elif line.strip() == "":
+            current_target = None
+
+    if not target:
+        target = default_goal or "help"
+
+    if target not in targets:
+        print(f"make: *** No rule to make target '{target}'. Stop.", file=sys.stderr)
+        sys.exit(2)
+
+    def run_target(t):
+        for dep in targets[t]["deps"]:
+            if dep in targets:
+                run_target(dep)
+        for cmd in targets[t]["commands"]:
+            # Replace makefile color vars
+            cmd_clean = cmd.replace("$(CYAN)", "\\033[36m")\
+                           .replace("$(GREEN)", "\\033[32m")\
+                           .replace("$(YELLOW)", "\\033[33m")\
+                           .replace("$(RED)", "\\033[31m")\
+                           .replace("$(RESET)", "\\033[0m")
+            # Run command in bash
+            ret = subprocess.run(cmd_clean, shell=True, executable="/bin/bash")
+            if ret.returncode != 0:
+                print(f"make: *** [{t}] Error {ret.returncode}", file=sys.stderr)
+                sys.exit(ret.returncode)
+
+    run_target(target)
+
+if __name__ == "__main__":
+    main()

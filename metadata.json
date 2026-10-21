@@ -1,0 +1,6 @@
+{
+  "name": "ApexSovereign.ai | Autonomous Enterprise Work OS",
+  "description": "ApexSovereign.ai — Autonomous Enterprise Work OS & Sovereign Compute Broker Platform. Zero-trust execution, real-time zero-copy data fabrics, and deterministic agent orchestration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

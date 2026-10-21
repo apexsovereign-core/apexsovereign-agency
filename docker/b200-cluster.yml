@@ -1,0 +1,77 @@
+version: "3.9"
+
+networks:
+  apex-b200-fabric:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.30.0.0/16
+
+services:
+  # Master B200 NVLink Cluster Daemon
+  b200-cluster-daemon:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.b200-cluster
+    container_name: apex-b200-cluster-orchestrator
+    environment:
+      - PORT=8095
+      - RUST_LOG=info
+      - CLUSTER_ID=b200-arbitrage-pod-mesh
+      - DEFAULT_TP_SIZE=8
+      - DEFAULT_PP_SIZE=2
+      - HBM3E_CAPACITY_GB=192
+      - NVLINK_BISECTION_TB_S=1.8
+    ports:
+      - "8095:8095"
+    networks:
+      apex-b200-fabric:
+        ipv4_address: 172.30.0.10
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8095/v1/cluster/health"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+
+  # Simulated Bare-Metal DGX B200 Node Alpha (NUMA Node 0/1)
+  dgx-b200-node-alpha:
+    image: alpine:latest
+    container_name: apex-dgx-b200-alpha
+    command: >
+      sh -c "echo 'Initializing Mock NVLink 5 Fabric (1.8 TB/s) on NUMA 0/1...';
+             while true; do sleep 3600; done"
+    environment:
+      - NODE_ID=node-alpha-bm
+      - NUMA_AFFINITY=0,1
+      - GPU_COUNT=8
+      - ACCELERATOR=NVIDIA_BLACKWELL_B200
+      - INTERCONNECT=NVLINK_5_DIRECT
+      - FABRIC_BANDWIDTH_TB_S=1.8
+    networks:
+      apex-b200-fabric:
+        ipv4_address: 172.30.0.11
+    restart: unless-stopped
+
+  # Simulated Cloud B200 Node Beta (RoCEv2 / InfiniBand NDR Inter-Pod)
+  cloud-b200-node-beta:
+    image: alpine:latest
+    container_name: apex-cloud-b200-beta
+    command: >
+      sh -c "echo 'Initializing Cloud B200 RoCEv2 Inter-Pod RDMA Mesh...';
+             while true; do sleep 3600; done"
+    environment:
+      - NODE_ID=node-beta-cloud
+      - NUMA_AFFINITY=2,3
+      - GPU_COUNT=8
+      - ACCELERATOR=NVIDIA_BLACKWELL_B200
+      - INTERCONNECT=ROCEV2_RDMA
+      - FABRIC_BANDWIDTH_TB_S=0.4
+    networks:
+      apex-b200-fabric:
+        ipv4_address: 172.30.0.12
+    restart: unless-stopped

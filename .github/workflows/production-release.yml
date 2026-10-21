@@ -247,7 +247,7 @@ jobs:
 
       - name: Build and Push Multi-Arch Docker Container Images
         id: build_push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./deploy/docker/Dockerfile.production

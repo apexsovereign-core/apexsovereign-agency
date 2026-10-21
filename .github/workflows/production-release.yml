@@ -294,7 +294,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Kubectl
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@v5
         with:
           version: 'v1.30.0'
 
@@ -381,7 +381,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Kubectl
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@v5
         with:
           version: 'v1.30.0'
 

@@ -48,7 +48,7 @@ jobs:
       commit_hash: ${{ steps.extract_commit.outputs.sha }}
     steps:
       - name: Checkout Source Code (Full History)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           submodules: recursive
@@ -166,7 +166,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Checkout Source Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Rust Stable Toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -210,7 +210,7 @@ jobs:
       full_image_ref: ${{ env.REGISTRY }}/${{ github.repository }}:${{ needs.code-quality-and-audit.outputs.release_version }}
     steps:
       - name: Checkout Source Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup QEMU for Multi-Architecture Emulation (amd64 / arm64)
         uses: docker/setup-qemu-action@v3
@@ -291,7 +291,7 @@ jobs:
             kube_context: "apex-cluster-ap-se"
     steps:
       - name: Checkout Source Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Kubectl
         uses: azure/setup-kubectl@v4
@@ -336,7 +336,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Source Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Make Verification Harness Executable
         run: chmod +x deploy/scripts/canary_verification.sh
@@ -378,7 +378,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout Source Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Kubectl
         uses: azure/setup-kubectl@v4

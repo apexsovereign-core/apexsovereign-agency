@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Terminal, Send, Trash2, Copy, Check, Shield, CornerDownLeft, Sparkles } from 'lucide-react';
+import { Terminal, Send, Trash2, Copy, Check, Shield, CornerDownLeft, Sparkles, Cpu, Lock } from 'lucide-react';
 
 interface HistoryItem {
   id: string;
@@ -11,21 +11,29 @@ interface HistoryItem {
 
 const COMMAND_OUTPUTS: Record<string, object> = {
   status: {
+    network_tier: "TIER-6_SOVEREIGN_INSTITUTIONAL",
     status: "OPERATIONAL",
-    mesh_version: "v3.2.0-sovereign",
+    mesh_version: "v3.6.0-sovereign-kernel",
     edge_p99_latency_ms: 10.4,
     sla_target_ms: 18.0,
     mesh_uptime_pct: 99.999,
     active_exaflops: 1.44,
+    hardware_security: {
+      amd_sev_snp: "ENFORCED_ACTIVE",
+      nvidia_cc: "ENABLED_ON_DIE_ROT",
+      memory_encryption: "AES-256-XTS",
+      attestation_service: "VERIFIED_CRYPTO_BOUND",
+    },
     cryptographic_ledger: "VERIFIED_HMAC_SHA256",
     settlement_ratio: "$1.00 USD = 100 CU",
     ebpf_filter_status: "ACTIVE_INSPECTING",
     nodes_online: 14,
-    failover_subsystems: "HOT_STANDBY",
+    failover_subsystems: "HOT_STANDBY_SUB18MS",
   },
   quote: {
     market: "APEX_SOVEREIGN_SPOT_ARBITRAGE",
     timestamp_utc: new Date().toISOString(),
+    gRpc_telemetry_cadence: "1,500ms continuous sweep",
     clearing_currency: "Compute Units (CU) & USD",
     rates: [
       {
@@ -35,6 +43,7 @@ const COMMAND_OUTPUTS: Record<string, object> = {
         apex_spot_rate_hr: "$2.40",
         hyperscaler_baseline_hr: "$5.10",
         savings_margin: "52.9%",
+        enclave: "AMD SEV-SNP + NVIDIA CC Dual Enclave",
         availability: "IMMEDIATE_DISPATCH",
       },
       {
@@ -44,6 +53,7 @@ const COMMAND_OUTPUTS: Record<string, object> = {
         apex_spot_rate_hr: "$2.85",
         hyperscaler_baseline_hr: "$4.60",
         savings_margin: "38.0%",
+        enclave: "NVIDIA Confidential Computing RoT",
         availability: "ALLOCATION_READY",
       },
       {
@@ -53,6 +63,7 @@ const COMMAND_OUTPUTS: Record<string, object> = {
         apex_spot_rate_hr: "$1.94",
         hyperscaler_baseline_hr: "$3.29",
         savings_margin: "41.0%",
+        enclave: "AMD SEV-SNP Attested",
         availability: "HIGH_CAPACITY",
       },
       {
@@ -62,16 +73,8 @@ const COMMAND_OUTPUTS: Record<string, object> = {
         apex_spot_rate_hr: "$1.42",
         hyperscaler_baseline_hr: "$2.20",
         savings_margin: "35.5%",
+        enclave: "Hardware MIG Slicing",
         availability: "HIGH_CAPACITY",
-      },
-      {
-        accelerator: "NVIDIA L40S PCIe 48GB",
-        vram: "48GB GDDR6",
-        interconnect: "64 GB/s PCIe Gen4",
-        apex_spot_rate_hr: "$0.89",
-        hyperscaler_baseline_hr: "$1.37",
-        savings_margin: "35.0%",
-        availability: "STREAMING_READY",
       },
     ],
   },
@@ -79,6 +82,7 @@ const COMMAND_OUTPUTS: Record<string, object> = {
     topology: "GLOBAL_SOVEREIGN_VECTOR_MESH",
     active_clusters: 3,
     inter_cluster_rtt_ms: 18.2,
+    hardware_enclaves_enforced: true,
     clusters: [
       {
         node_id: "us-east-01",
@@ -88,7 +92,7 @@ const COMMAND_OUTPUTS: Record<string, object> = {
         latency_p99_ms: 9.8,
         allocated_gpus: 1120,
         available_gpus: 480,
-        accelerators: ["NVIDIA Rubin HBM4", "NVIDIA H100 SXM5"],
+        confidential_computing: "AMD SEV-SNP + NVIDIA CC",
       },
       {
         node_id: "eu-central-02",
@@ -98,7 +102,7 @@ const COMMAND_OUTPUTS: Record<string, object> = {
         latency_p99_ms: 11.2,
         allocated_gpus: 890,
         available_gpus: 310,
-        accelerators: ["NVIDIA B200 NVL72", "NVIDIA H100 SXM5"],
+        confidential_computing: "AMD SEV-SNP + Hardware Root of Trust",
       },
       {
         node_id: "ap-southeast-01",
@@ -108,7 +112,7 @@ const COMMAND_OUTPUTS: Record<string, object> = {
         latency_p99_ms: 10.4,
         allocated_gpus: 1440,
         available_gpus: 650,
-        accelerators: ["NVIDIA Rubin HBM4", "NVIDIA A100 SXM4"],
+        confidential_computing: "AMD SEV-SNP + Secure Memory Encryption",
       },
     ],
   },
@@ -126,6 +130,24 @@ const COMMAND_OUTPUTS: Record<string, object> = {
       { price_usd_hr: 2.85, gpus_offered: 64, accelerator: "NVIDIA B200 NVL72", location: "eu-central-02" },
       { price_usd_hr: 1.94, gpus_offered: 320, accelerator: "NVIDIA H100 SXM5", location: "ap-southeast-01" },
     ],
+  },
+  provision: {
+    action: "ATOMIC_CLUSTER_PROVISION",
+    provision_id: "prv_apex_" + Math.random().toString(36).substring(2, 10),
+    status: "PROVISIONED_CONFIDENTIAL_ENCLAVE",
+    accelerators_allocated: 32,
+    model: "NVIDIA Rubin / HBM4",
+    cluster_routing_target: "us-east-01 (Ashburn Core)",
+    enclave_verification: {
+      amd_sev_snp: "ATTESTATION_PASSED",
+      nvidia_cc: "ON_DIE_ISOLATION_ACTIVE",
+      memory_encryption_key: "0x" + Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
+    },
+    lease_hmac_sha256: "0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
+    hourly_rate_usd: 2.40,
+    hourly_rate_cu: 240,
+    mesh_ingress_endpoint: "grpc://mesh-ingress.apexsovereign.ai:443",
+    timestamp: new Date().toISOString(),
   },
 };
 
@@ -160,16 +182,26 @@ export const TerminalCLIView: React.FC = () => {
       resultOutput = JSON.stringify(
         {
           executable_commands: [
-            { command: 'status', description: 'Returns real-time mesh operational state and SLA metrics.' },
+            { command: 'status', description: 'Returns real-time mesh operational state and hardware enclave status.' },
             { command: 'quote', description: 'Displays live spot arbitrage rate cards with hyperscaler comparison.' },
             { command: 'nodes', description: 'Lists active sovereign clusters in Virginia, Frankfurt, and Singapore.' },
             { command: 'orderbook', description: 'Outputs live bid/ask order book depth across compute capacity.' },
+            { command: 'provision', description: 'Instantly provisions an isolated confidential GPU enclave atomically.' },
             { command: 'clear', description: 'Clears the active terminal output history.' },
           ],
         },
         null,
         2
       );
+    } else if (trimmed === 'provision') {
+      // Dynamic provision payload
+      const dynamicProvision = {
+        ...COMMAND_OUTPUTS.provision,
+        provision_id: "prv_apex_" + Math.random().toString(36).substring(2, 10),
+        timestamp: new Date().toISOString(),
+        lease_hmac_sha256: "0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
+      };
+      resultOutput = JSON.stringify(dynamicProvision, null, 2);
     } else if (COMMAND_OUTPUTS[trimmed]) {
       resultOutput = JSON.stringify(COMMAND_OUTPUTS[trimmed], null, 2);
     } else {
@@ -178,7 +210,7 @@ export const TerminalCLIView: React.FC = () => {
         {
           error: "COMMAND_NOT_RECOGNIZED",
           message: `Unknown command: '${trimmed}'. Type 'help' to inspect supported commands.`,
-          supported_commands: ['status', 'quote', 'nodes', 'orderbook', 'clear', 'help'],
+          supported_commands: ['status', 'quote', 'nodes', 'orderbook', 'provision', 'clear', 'help'],
         },
         null,
         2
@@ -228,14 +260,14 @@ export const TerminalCLIView: React.FC = () => {
           <div className="flex items-center gap-2 pl-2 border-l border-slate-700">
             <Terminal className="w-4 h-4 text-[#00F0FF]" />
             <span className="text-xs font-mono font-bold text-white tracking-wider">
-              APEXSOVEREIGN LIVE EXCHANGE CLI (v3.2)
+              TIER-6 INSTITUTIONAL CLI EXCHANGE
             </span>
           </div>
         </div>
 
         {/* Quick Command Suggestion Buttons */}
         <div className="flex flex-wrap items-center gap-1.5">
-          {['status', 'quote', 'nodes', 'orderbook', 'clear'].map((cmd) => (
+          {['status', 'quote', 'nodes', 'orderbook', 'provision', 'clear'].map((cmd) => (
             <button
               key={cmd}
               onClick={() => executeCommand(cmd)}
@@ -252,7 +284,7 @@ export const TerminalCLIView: React.FC = () => {
         {/* Terminal Output Area */}
         <div className="p-6 font-mono text-xs space-y-6 max-h-[550px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800">
           <div className="text-slate-500 text-[11px] border-b border-slate-800 pb-3">
-            [SYS_INIT] Autonomous Sovereign Compute Exchange CLI connected to cluster: <span className="text-[#00F0FF]">apex-hyper-mesh-global</span>. Type <span className="text-emerald-400 font-bold">help</span> to list commands.
+            [SYS_INIT] ApexSovereign Tier-6 Institutional CLI connected to cluster: <span className="text-[#00F0FF]">apex-hyper-mesh-global</span>. Authenticated via <span className="text-emerald-400 font-bold">HMAC-SHA256 & AMD SEV-SNP</span>. Type <span className="text-emerald-400 font-bold">help</span> to list commands.
           </div>
 
           {history.map((item) => (
@@ -304,7 +336,7 @@ export const TerminalCLIView: React.FC = () => {
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type 'status', 'quote', 'nodes', 'orderbook', or 'help'..."
+            placeholder="Type 'status', 'quote', 'nodes', 'orderbook', 'provision', or 'help'..."
             className="flex-1 bg-transparent font-mono text-sm text-white placeholder-slate-600 outline-none"
           />
           <button

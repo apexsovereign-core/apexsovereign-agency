@@ -1,16 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Network, Activity, Globe, Zap, Shield, CheckCircle2 } from 'lucide-react';
+import { Network, Activity, Globe, Zap, Shield, CheckCircle2, Lock } from 'lucide-react';
 
 interface MeshNode {
   id: string;
   name: string;
   region: string;
-  xPct: number; // 0 to 1
-  yPct: number; // 0 to 1
+  xPct: number;
+  yPct: number;
   latencyMs: number;
   activeGpus: number;
   status: 'OPTIMAL' | 'ACTIVE';
   tier: string;
+  hardwareEnclave: string;
 }
 
 const NODES: MeshNode[] = [
@@ -24,6 +25,7 @@ const NODES: MeshNode[] = [
     activeGpus: 1120,
     status: 'OPTIMAL',
     tier: 'Tier 4 Liquid',
+    hardwareEnclave: 'AMD SEV-SNP + NVIDIA CC Dual Enclave',
   },
   {
     id: 'eu-central-02',
@@ -35,6 +37,7 @@ const NODES: MeshNode[] = [
     activeGpus: 890,
     status: 'OPTIMAL',
     tier: 'GDPR Sovereign',
+    hardwareEnclave: 'AMD SEV-SNP On-Die Attestation',
   },
   {
     id: 'ap-southeast-01',
@@ -46,13 +49,13 @@ const NODES: MeshNode[] = [
     activeGpus: 1440,
     status: 'OPTIMAL',
     tier: 'Subsea Interconnect',
+    hardwareEnclave: 'NVIDIA Confidential Computing Root-of-Trust',
   },
 ];
 
 export const GlobalMeshCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [selectedNode, setSelectedNode] = useState<MeshNode>(NODES[0]);
-  const [packetCount, setPacketCount] = useState<number>(1420);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -73,7 +76,6 @@ export const GlobalMeshCanvas: React.FC = () => {
     resize();
     window.addEventListener('resize', resize);
 
-    // Packets along routes
     const routes = [
       { from: NODES[0], to: NODES[1] },
       { from: NODES[1], to: NODES[2] },
@@ -105,7 +107,6 @@ export const GlobalMeshCanvas: React.FC = () => {
         const x2 = route.to.xPct * w;
         const y2 = route.to.yPct * h;
 
-        // Control point curvature
         const midX = (x1 + x2) / 2;
         const midY = Math.min(y1, y2) - 45;
 
@@ -125,7 +126,6 @@ export const GlobalMeshCanvas: React.FC = () => {
           const currX = (1 - progress) * (1 - progress) * x1 + 2 * (1 - progress) * progress * midX + progress * progress * x2;
           const currY = (1 - progress) * (1 - progress) * y1 + 2 * (1 - progress) * progress * midY + progress * progress * y2;
 
-          // Glowing packet
           const glow = ctx.createRadialGradient(currX, currY, 1, currX, currY, 8);
           glow.addColorStop(0, 'rgba(0, 240, 255, 1)');
           glow.addColorStop(0.5, 'rgba(0, 240, 255, 0.4)');
@@ -148,7 +148,6 @@ export const GlobalMeshCanvas: React.FC = () => {
         const ny = node.yPct * h;
         const isSelected = selectedNode.id === node.id;
 
-        // Pulse ring
         const ringRadius = 12 + Math.sin(t * 3 + node.latencyMs) * 3;
         ctx.strokeStyle = isSelected ? '#00F0FF' : 'rgba(0, 240, 255, 0.4)';
         ctx.lineWidth = isSelected ? 2 : 1;
@@ -156,7 +155,6 @@ export const GlobalMeshCanvas: React.FC = () => {
         ctx.arc(nx, ny, ringRadius, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Node center
         ctx.fillStyle = isSelected ? '#00F0FF' : '#0A1526';
         ctx.beginPath();
         ctx.arc(nx, ny, 6, 0, Math.PI * 2);
@@ -166,7 +164,6 @@ export const GlobalMeshCanvas: React.FC = () => {
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
-        // Label
         ctx.font = '10px ui-monospace, monospace';
         ctx.fillStyle = isSelected ? '#00F0FF' : '#94A3B8';
         ctx.fillText(node.name, nx - 24, ny + 22);
@@ -190,7 +187,6 @@ export const GlobalMeshCanvas: React.FC = () => {
         const dist = Math.hypot(clickX - nx, clickY - ny);
         if (dist < 30) {
           setSelectedNode(node);
-          setPacketCount((prev) => prev + 12);
         }
       });
     };
@@ -211,13 +207,13 @@ export const GlobalMeshCanvas: React.FC = () => {
         <div className="flex items-center gap-3">
           <div className="w-2.5 h-2.5 rounded-full bg-[#00F0FF] animate-ping" />
           <span className="text-xs font-mono font-bold text-white tracking-wider uppercase">
-            GLOBAL VECTOR MESH TOPOLOGY & REAL-TIME BEZIER PULSES
+            TIER-6 VECTOR MESH TOPOLOGY & CONFIDENTIAL ENCLAVES
           </span>
         </div>
 
         <div className="flex items-center gap-4 text-xs font-mono">
           <span className="text-slate-400">P99 SLA LATENCY: <strong className="text-[#00F0FF]">10.4ms</strong></span>
-          <span className="text-slate-400">MESH UPTIME: <strong className="text-[#10B981]">99.999%</strong></span>
+          <span className="text-slate-400">HARDWARE ENCLAVES: <strong className="text-emerald-400">AMD SEV-SNP & CC</strong></span>
         </div>
       </div>
 
@@ -225,8 +221,8 @@ export const GlobalMeshCanvas: React.FC = () => {
       <div className="relative min-h-[360px] sm:min-h-[420px] bg-gradient-to-b from-[#020305] via-[#040813] to-[#020305]">
         <canvas ref={canvasRef} className="w-full h-[400px] cursor-pointer" />
 
-        {/* Floating Active Cluster HUD Info */}
-        <div className="absolute top-4 left-4 p-4 rounded-xl bg-[#080D16]/90 border border-[#00F0FF]/30 backdrop-blur-xl max-w-xs shadow-xl space-y-2 pointer-events-none">
+        {/* Floating Active Cluster HUD Info with Hardware Security */}
+        <div className="absolute top-4 left-4 p-4 rounded-xl bg-[#080D16]/90 border border-[#00F0FF]/30 backdrop-blur-xl max-w-sm shadow-xl space-y-2 pointer-events-none">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-mono font-bold text-[#00F0FF] uppercase">
               SELECTED VECTOR ROUTE
@@ -239,6 +235,11 @@ export const GlobalMeshCanvas: React.FC = () => {
 
           <h4 className="text-sm font-bold text-white font-sans">{selectedNode.name}</h4>
           <div className="text-[11px] font-mono text-slate-300">{selectedNode.region}</div>
+
+          <div className="p-2 rounded bg-[#030508] border border-slate-800 text-[10px] font-mono text-emerald-400 flex items-center gap-1.5">
+            <Lock className="w-3 h-3 text-[#10B981] shrink-0" />
+            <span className="truncate">{selectedNode.hardwareEnclave}</span>
+          </div>
 
           <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-xs font-mono">
             <div>

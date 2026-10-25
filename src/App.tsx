@@ -66,13 +66,13 @@ export function App() {
             onClick={() => navigateTo('landing')}
             className="flex items-center gap-3 cursor-pointer group"
           >
-            <CyanFacetedJewelEmblem size={34} glow={true} />
+            <CyanFacetedJewelEmblem className="w-8 h-8" />
             <div className="flex flex-col">
               <span className="text-base sm:text-lg font-extrabold tracking-wider font-mono text-white group-hover:text-[#00F0FF] transition">
                 APEXSOVEREIGN<span className="text-[#00F0FF]">.AI</span>
               </span>
               <span className="text-[9px] font-mono text-slate-400 tracking-widest uppercase">
-                SOVEREIGN COMPUTE EXCHANGE
+                TIER-6 SOVEREIGN INSTITUTIONAL NETWORK
               </span>
             </div>
           </div>
@@ -104,6 +104,8 @@ export function App() {
             <div className="hidden xl:flex items-center gap-2 px-3 py-1 rounded-full bg-[#030508] border border-slate-800 text-[10px] font-mono">
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
               <span className="text-slate-300">10.4ms SLA</span>
+              <span className="text-slate-600">|</span>
+              <span className="text-emerald-400 font-bold">AMD SEV-SNP & CC</span>
               <span className="text-slate-600">|</span>
               <span className="text-[#00F0FF]">$1.00 = 100 CU</span>
             </div>

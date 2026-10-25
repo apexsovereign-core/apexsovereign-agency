@@ -1,18 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
-  <title id="title">ApexSovereign.ai faceted diamond</title>
-  <desc id="desc">A three-dimensional Diamond Cyan geometric crystal mark.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-label="ApexSovereign Emblem">
   <defs>
-    <linearGradient id="cyan" x1="90" y1="70" x2="420" y2="450" gradientUnits="userSpaceOnUse"><stop stop-color="#8EFBFF"/><stop offset=".28" stop-color="#00F0FF"/><stop offset=".72" stop-color="#00A8D4"/><stop offset="1" stop-color="#00708F"/></linearGradient>
-    <linearGradient id="light" x1="155" y1="92" x2="360" y2="395" gradientUnits="userSpaceOnUse"><stop stop-color="#D9FFFF"/><stop offset=".35" stop-color="#00F0FF"/><stop offset="1" stop-color="#008DB5"/></linearGradient>
-    <linearGradient id="deep" x1="160" y1="245" x2="360" y2="420" gradientUnits="userSpaceOnUse"><stop stop-color="#006680"/><stop offset=".5" stop-color="#00B8DA"/><stop offset="1" stop-color="#00465E"/></linearGradient>
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="14" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <linearGradient id="apexCyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00F0FF" />
+      <stop offset="50%" stop-color="#00A8E8" />
+      <stop offset="100%" stop-color="#005580" />
+    </linearGradient>
   </defs>
-  <path d="M256 34 449 231 256 478 63 231 256 34Z" fill="#00F0FF" opacity=".22" filter="url(#glow)"/>
-  <path d="M256 34 449 231 363 207 256 114 149 207 63 231 256 34Z" fill="url(#light)" stroke="#8EFBFF" stroke-width="2"/>
-  <path d="m63 231 86-24 107 93-70 2-78 86-45-157Z" fill="url(#cyan)" stroke="#00F0FF" stroke-width="2"/>
-  <path d="m449 231-86-24-107 93 70 2 78 86 45-157Z" fill="url(#deep)" stroke="#00DDF2" stroke-width="2"/>
-  <path d="m108 388 78-86 70-2v178l-148-90Z" fill="url(#deep)" stroke="#00CFEA" stroke-width="2"/>
-  <path d="m404 388-78-86-70-2v178l148-90Z" fill="url(#cyan)" stroke="#00F0FF" stroke-width="2"/>
-  <path d="m256 114 107 93-107 93-107-93 107-93Z" fill="#03131D" stroke="#00F0FF" stroke-width="2"/>
-  <path d="m256 153 58 53-58 51-58-51 58-53Z" fill="url(#light)" opacity=".95"/>
+  <polygon points="50,5 92,28 92,72 50,95 8,72 8,28" fill="url(#apexCyanGrad)" stroke="#00F0FF" stroke-width="2" />
+  <polygon points="50,5 92,28 50,50 8,28" fill="rgba(255,255,255,0.25)" />
+  <polygon points="50,22 68,36 50,50 32,36" fill="#020305" stroke="#00F0FF" stroke-width="1.5" />
 </svg>

@@ -29,13 +29,13 @@ export default function RootLayout({
         <header className="sticky top-0 z-50 w-full border-b border-[#00F0FF]/20 bg-[#080D16]/85 backdrop-blur-2xl">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between gap-4">
             <Link href="/" className="flex items-center gap-3 group">
-              <CyanFacetedJewelEmblem size={34} glow={true} />
+              <CyanFacetedJewelEmblem className="w-8 h-8" />
               <div className="flex flex-col">
                 <span className="text-base sm:text-lg font-extrabold tracking-wider font-mono text-white group-hover:text-[#00F0FF] transition">
                   APEXSOVEREIGN<span className="text-[#00F0FF]">.AI</span>
                 </span>
                 <span className="text-[9px] font-mono text-slate-400 tracking-widest uppercase">
-                  SOVEREIGN COMPUTE EXCHANGE
+                  TIER-6 SOVEREIGN INSTITUTIONAL NETWORK
                 </span>
               </div>
             </Link>
@@ -72,6 +72,8 @@ export default function RootLayout({
                 <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
                 <span className="text-slate-300">10.4ms SLA</span>
                 <span className="text-slate-600">|</span>
+                <span className="text-emerald-400 font-bold">AMD SEV-SNP & CC</span>
+                <span className="text-slate-600">|</span>
                 <span className="text-[#00F0FF]">$1.00 = 100 CU</span>
               </div>
 
@@ -91,8 +93,8 @@ export default function RootLayout({
         <footer className="w-full border-t border-slate-900 bg-[#020305] py-8 text-xs font-mono text-slate-500 mt-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <CyanFacetedJewelEmblem size={24} glow={false} />
-              <span>APEXSOVEREIGN.AI // CRYPTOGRAPHIC CONTROL PLANE · V3.2.0</span>
+              <CyanFacetedJewelEmblem className="w-6 h-6" />
+              <span>APEXSOVEREIGN.AI // CRYPTOGRAPHIC CONTROL PLANE · V3.6.0</span>
             </div>
             <div className="text-[10px] text-slate-600">
               ALL SYSTEMS NOMINAL · 10.4ms P99 SLA · $1.00 = 100 CU

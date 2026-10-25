@@ -1,0 +1,286 @@
+# ============================================================================
+# ApexSovereign.ai - PRODUCTION KUBERNETES DEPLOYMENT MANIFEST
+# Manifest: deploy/k8s/sovereign-core.yaml
+# Architecture: Zero-Trust Multi-Region Mesh, eBPF Sockmap Ingress & B200 NVLink Orchestrator
+# ============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apexsovereign-system
+  labels:
+    app.kubernetes.io/part-of: apexsovereign
+    security.apexsovereign.ai/enforcement: privileged-ebpf
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sovereign-core-sa
+  namespace: apexsovereign-system
+  labels:
+    app.kubernetes.io/name: sovereign-core
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: sovereign-core-role
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "pods", "endpoints", "services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: sovereign-core-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: sovereign-core-role
+subjects:
+  - kind: ServiceAccount
+    name: sovereign-core-sa
+    namespace: apexsovereign-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sovereign-core-config
+  namespace: apexsovereign-system
+data:
+  SOVEREIGN_BIND_ADDR: "0.0.0.0"
+  PORT: "8080"
+  METRICS_PORT: "9090"
+  ENVIRONMENT: "production"
+  SOVEREIGN_REGION: "us-east-1"
+  EBPF_ENABLED: "true"
+  BPF_SOCKMAP_PATH: "/sys/fs/bpf/sovereign_sockmap"
+  MESH_IFACE: "eth0"
+  CA_CERT_PATH: "/etc/apexsovereign/certs/ca.crt"
+  SUPABASE_URL: "https://apexsovereign.supabase.co"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sovereign-core-secrets
+  namespace: apexsovereign-system
+type: Opaque
+stringData:
+  SUPABASE_SERVICE_ROLE_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.apexsovereign_production_service_role_key"
+  MESH_HMAC_SECRET: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sovereign-core
+  namespace: apexsovereign-system
+  labels:
+    app.kubernetes.io/name: sovereign-core
+    app.kubernetes.io/component: orchestrator
+    tier: control-plane
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sovereign-core
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sovereign-core
+        app.kubernetes.io/component: orchestrator
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: sovereign-core-sa
+      terminationGracePeriodSeconds: 60
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values: ["sovereign-core"]
+                topologyKey: "kubernetes.io/hostname"
+            - weight: 50
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values: ["sovereign-core"]
+                topologyKey: "topology.kubernetes.io/zone"
+      containers:
+        - name: sovereign-core
+          image: apexsovereign/sovereign-core:v1.0.0
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: sovereign-core-config
+            - secretRef:
+                name: sovereign-core-secrets
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: http3-quic
+              containerPort: 8080
+              protocol: UDP
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+          securityContext:
+            privileged: false
+            capabilities:
+              add:
+                - BPF
+                - NET_ADMIN
+                - SYS_ADMIN
+                - PERFMON
+            readOnlyRootFilesystem: true
+            runAsNonRoot: false
+          resources:
+            requests:
+              cpu: "2000m"
+              memory: "4Gi"
+              ephemeral-storage: "1Gi"
+            limits:
+              cpu: "8000m"
+              memory: "16Gi"
+              ephemeral-storage: "4Gi"
+          volumeMounts:
+            - name: bpf-fs
+              mountPath: /sys/fs/bpf
+              mountPropagation: Bidirectional
+            - name: tmp-dir
+              mountPath: /tmp
+            - name: certs-dir
+              mountPath: /etc/apexsovereign/certs
+              readOnly: true
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 2
+            periodSeconds: 2
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: 8080
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 2
+      volumes:
+        - name: bpf-fs
+          hostPath:
+            path: /sys/fs/bpf
+            type: DirectoryOrCreate
+        - name: tmp-dir
+          emptyDir: {}
+        - name: certs-dir
+          secret:
+            secretName: sovereign-core-secrets
+            defaultMode: 0400
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sovereign-core-service
+  namespace: apexsovereign-system
+  labels:
+    app.kubernetes.io/name: sovereign-core
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "external"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: sovereign-core
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+    - name: https
+      port: 443
+      targetPort: 8080
+      protocol: TCP
+    - name: http3
+      port: 443
+      targetPort: 8080
+      protocol: UDP
+    - name: metrics
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: sovereign-core-pdb
+  namespace: apexsovereign-system
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sovereign-core
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: sovereign-core-hpa
+  namespace: apexsovereign-system
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sovereign-core
+  minReplicas: 3
+  maxReplicas: 30
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 10
+          periodSeconds: 60

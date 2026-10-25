@@ -1,0 +1,29 @@
+[package]
+name = "retail-mesh"
+version = "1.0.0"
+edition = "2021"
+authors = ["ApexSovereign Systems Engineering <retail@apexsovereign.ai>"]
+description = "Tier 4 Retail Fractional GPU Sharing, MIG Slicing, and Sub-5ms Micro-Billing Engine"
+
+[dependencies]
+tokio = { version = "1.38", features = ["full"] }
+axum = { version = "0.7", features = ["macros", "tokio"] }
+tower = { version = "0.4", features = ["util"] }
+tower-http = { version = "0.5", features = ["cors", "trace", "timeout"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.8", features = ["v4", "serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+parking_lot = "0.12"
+async-trait = "0.1"
+thiserror = "1.0"
+bytes = "1.6"
+http = "1.1"
+rand = "0.8"
+
+[lib]
+name = "retail_mesh"
+path = "src/lib.rs"

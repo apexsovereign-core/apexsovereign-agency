@@ -1,0 +1,33 @@
+name: Production Autonomous Sentinels Verification & Validation
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  sentinels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || true
+          pip install asyncpg psycopg2-binary PyJWT PyYAML pytest
+
+      - name: Run Python Sentinels & AuraPharm Audits
+        env:
+          INGESTION_WEBHOOK_SECRET: "test-secret"
+          SUPABASE_URL: "https://mock-supabase.supabase.co"
+          SUPABASE_SERVICE_ROLE_KEY: "mock-service-role-key"
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
+        run: |
+          pytest

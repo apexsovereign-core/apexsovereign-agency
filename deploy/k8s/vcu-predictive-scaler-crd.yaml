@@ -1,0 +1,303 @@
+# ============================================================================
+# ApexSovereign.ai - PREEMPTIVE VCU PREDICTIVE SCALER CRD & OPERATOR MANIFEST
+# File: deploy/k8s/vcu-predictive-scaler-crd.yaml
+# Specification:
+#   - Kubernetes CustomResourceDefinition (CRD) for VCUPredictiveScaler
+#   - Production CR instance configuration with Holt-Winters hyperparameters
+#   - Operator RBAC permissions, Deployment specification, and PodDisruptionBudget
+# ============================================================================
+
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vcupredictivescalers.compute.apexsovereign.ai
+  labels:
+    app.kubernetes.io/name: apexsovereign-autoscaler
+    app.kubernetes.io/part-of: apexsovereign-core
+spec:
+  group: compute.apexsovereign.ai
+  names:
+    kind: VCUPredictiveScaler
+    listKind: VCUPredictiveScalerList
+    plural: vcupredictivescalers
+    singular: vcupredictivescaler
+    shortNames:
+      - vps
+      - vcuscaler
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+        scale:
+          specReplicasPath: .spec.minReplicas
+          statusReplicasPath: .status.currentReplicas
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              required:
+                - targetHeadroomPercentage
+                - minReplicas
+                - maxReplicas
+                - holtWinters
+              properties:
+                scaleTargetRef:
+                  type: object
+                  required:
+                    - apiVersion
+                    - kind
+                    - name
+                  properties:
+                    apiVersion:
+                      type: string
+                    kind:
+                      type: string
+                    name:
+                      type: string
+                minReplicas:
+                  type: integer
+                  minimum: 1
+                  default: 8
+                maxReplicas:
+                  type: integer
+                  maximum: 512
+                  default: 128
+                targetHeadroomPercentage:
+                  type: integer
+                  minimum: 5
+                  maximum: 50
+                  default: 20
+                metricIngressEndpoint:
+                  type: string
+                  default: "http://streaming-gateway.apexsovereign-system.svc.cluster.local:8080/metrics"
+                downscaleStabilizationWindowSeconds:
+                  type: integer
+                  default: 300
+                holtWinters:
+                  type: object
+                  required:
+                    - alpha
+                    - beta
+                    - gamma
+                    - periodSeconds
+                    - lookaheadSeconds
+                  properties:
+                    alpha:
+                      type: number
+                      minimum: 0.0
+                      maximum: 1.0
+                      default: 0.35
+                    beta:
+                      type: number
+                      minimum: 0.0
+                      maximum: 1.0
+                      default: 0.15
+                    gamma:
+                      type: number
+                      minimum: 0.0
+                      maximum: 1.0
+                      default: 0.25
+                    periodSeconds:
+                      type: integer
+                      default: 60
+                    lookaheadSeconds:
+                      type: integer
+                      default: 60
+                    saturationScaleThreshold:
+                      type: number
+                      default: 0.80
+                slaProtection:
+                  type: object
+                  properties:
+                    emergencyShedSaturationThreshold:
+                      type: number
+                      default: 0.92
+                    enterprisePriorityBypass:
+                      type: boolean
+                      default: true
+                    enforceMaxP99LatencyMs:
+                      type: integer
+                      default: 25
+            status:
+              type: object
+              properties:
+                currentReplicas:
+                  type: integer
+                desiredReplicas:
+                  type: integer
+                currentTokensPerSec:
+                  type: number
+                forecastedTokensPerSec:
+                  type: number
+                predictedSaturation:
+                  type: number
+                emergencyShedActive:
+                  type: boolean
+                lastScaleTime:
+                  type: string
+                  format: date-time
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - status
+                      - lastTransitionTime
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      reason:
+                        type: string
+                      message:
+                        type: string
+---
+# Production Custom Resource Instance
+apiVersion: compute.apexsovereign.ai/v1
+kind: VCUPredictiveScaler
+metadata:
+  name: vcu-predictive-scaler-production
+  namespace: apexsovereign-system
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: b200-nvlink-compute-workers
+  minReplicas: 8
+  maxReplicas: 128
+  targetHeadroomPercentage: 20
+  downscaleStabilizationWindowSeconds: 300
+  metricIngressEndpoint: "http://streaming-gateway.apexsovereign-system.svc.cluster.local:8080/metrics"
+  holtWinters:
+    alpha: 0.35
+    beta: 0.15
+    gamma: 0.25
+    periodSeconds: 60
+    lookaheadSeconds: 60
+    saturationScaleThreshold: 0.80
+  slaProtection:
+    emergencyShedSaturationThreshold: 0.92
+    enterprisePriorityBypass: true
+    enforceMaxP99LatencyMs: 25
+---
+# ServiceAccount for Autoscaler Operator
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: apexsovereign-autoscaler-sa
+  namespace: apexsovereign-system
+---
+# ClusterRole for Node & Deployment Scaling Privileges
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: apexsovereign-autoscaler-role
+rules:
+  - apiGroups: ["compute.apexsovereign.ai"]
+    resources: ["vcupredictivescalers", "vcupredictivescalers/status", "vcupredictivescalers/scale"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "deployments/scale", "statefulsets", "statefulsets/scale"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["nodes", "pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+# ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: apexsovereign-autoscaler-binding
+subjects:
+  - kind: ServiceAccount
+    name: apexsovereign-autoscaler-sa
+    namespace: apexsovereign-system
+roleRef:
+  kind: ClusterRole
+  name: apexsovereign-autoscaler-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# Autoscaler Daemon Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apexsovereign-autoscaler-daemon
+  namespace: apexsovereign-system
+  labels:
+    app.kubernetes.io/name: autoscaler-daemon
+    app.kubernetes.io/part-of: apexsovereign-core
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: autoscaler-daemon
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: autoscaler-daemon
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9100"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: apexsovereign-autoscaler-sa
+      containers:
+        - name: autoscaler
+          image: apexsovereign/autoscaler:v1.0.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: RUST_LOG
+              value: "info,autoscaler=debug"
+            - name: CRD_NAME
+              value: "vcu-predictive-scaler-production"
+            - name: METRIC_INGRESS_URL
+              value: "http://streaming-gateway.apexsovereign-system.svc.cluster.local:8080/metrics"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+          ports:
+            - name: metrics
+              containerPort: 9100
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 9100
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 9100
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+# PodDisruptionBudget ensuring 1 replica always active during cluster maintenance
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: autoscaler-daemon-pdb
+  namespace: apexsovereign-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: autoscaler-daemon

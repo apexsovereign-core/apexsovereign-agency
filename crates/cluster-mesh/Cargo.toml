@@ -1,0 +1,28 @@
+[package]
+name = "cluster-mesh"
+version = "0.1.0"
+edition = "2021"
+authors = ["ApexSovereign Engineering <cluster@apexsovereign.ai>"]
+description = "Blackwell B200 NVLink Cluster Arbitrage & Distributed Inference Engine for ApexSovereign"
+
+[dependencies]
+tokio = { version = "1.38", features = ["full", "sync", "time"] }
+async-trait = "0.1"
+axum = { version = "0.7", features = ["macros", "ws"] }
+tower = { version = "0.4", features = ["util"] }
+tower-http = { version = "0.5", features = ["trace", "cors"] }
+reqwest = { version = "0.12", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.8", features = ["v4", "serde"] }
+parking_lot = "0.12"
+arc-swap = "1.7"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+thiserror = "1.0"
+anyhow = "1.0"
+
+[[bin]]
+name = "b200-cluster-daemon"
+path = "src/main.rs"

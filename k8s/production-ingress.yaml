@@ -1,0 +1,123 @@
+# ==============================================================================
+# ApexSovereign.ai - Operational Command 11: Production Ingress & TLS Manifest
+# File: k8s/production-ingress.yaml
+# Classification: High-Availability Edge Routing & Zero-Downtime TLS 1.3 Ingress
+# Domain Target: apexsovereign.ai / www.apexsovereign.ai / api.apexsovereign.ai
+# ==============================================================================
+
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: apexsovereign-tls-cert
+  namespace: apexsovereign-prod
+  labels:
+    app.kubernetes.io/name: apexsovereign-tls-cert
+    app.kubernetes.io/part-of: apexsovereign-core
+spec:
+  secretName: apexsovereign-tls-secret
+  issuerRef:
+    name: letsencrypt-production
+    kind: ClusterIssuer
+  dnsNames:
+    - apexsovereign.ai
+    - www.apexsovereign.ai
+    - api.apexsovereign.ai
+    - telemetry.apexsovereign.ai
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: apexsovereign-production-ingress
+  namespace: apexsovereign-prod
+  labels:
+    app.kubernetes.io/name: apexsovereign-ingress
+    app.kubernetes.io/part-of: apexsovereign-core
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-protocols: "TLSv1.3"
+    nginx.ingress.kubernetes.io/ssl-ciphers: "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256"
+    nginx.ingress.kubernetes.io/proxy-body-size: "64m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    # WebSocket support for /v1/telemetry/ws
+    nginx.ingress.kubernetes.io/websocket-services: "apexsovereign-backend-svc"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: SAMEORIGIN";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Strict-Transport-Security: max-age=63072000; includeSubDomains; preload";
+spec:
+  tls:
+    - hosts:
+        - apexsovereign.ai
+        - www.apexsovereign.ai
+        - api.apexsovereign.ai
+        - telemetry.apexsovereign.ai
+      secretName: apexsovereign-tls-secret
+  rules:
+    # 1. API & Backend Routing (api.apexsovereign.ai)
+    - host: api.apexsovereign.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: apexsovereign-backend-svc
+                port:
+                  number: 8000
+
+    # 2. Apex Domain & WWW (Frontend UI + Proxied API /v1)
+    - host: apexsovereign.ai
+      http:
+        paths:
+          - path: /v1
+            pathType: Prefix
+            backend:
+              service:
+                name: apexsovereign-backend-svc
+                port:
+                  number: 8000
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: apexsovereign-backend-svc
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: apexsovereign-frontend-svc
+                port:
+                  number: 80
+
+    - host: www.apexsovereign.ai
+      http:
+        paths:
+          - path: /v1
+            pathType: Prefix
+            backend:
+              service:
+                name: apexsovereign-backend-svc
+                port:
+                  number: 8000
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: apexsovereign-backend-svc
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: apexsovereign-frontend-svc
+                port:
+                  number: 80

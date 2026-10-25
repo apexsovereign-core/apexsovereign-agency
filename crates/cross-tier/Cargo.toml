@@ -1,0 +1,26 @@
+[package]
+name = "cross-tier"
+version = "1.0.0"
+edition = "2021"
+authors = ["ApexSovereign Systems Engineering <scheduler@apexsovereign.ai>"]
+description = "Cross-Tier Dynamic Arbitrage, Priority Scheduling, and Sub-5ms Preemption Engine for ApexSovereign.ai"
+
+[dependencies]
+tokio = { version = "1.38", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.8", features = ["v4", "serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+parking_lot = "0.12"
+async-trait = "0.1"
+thiserror = "1.0"
+crossbeam-channel = "0.5"
+crossbeam-queue = "0.3"
+bytes = "1.6"
+rand = "0.8"
+
+[lib]
+name = "cross_tier"
+path = "src/lib.rs"

@@ -1,0 +1,45 @@
+name: Build and Sync to Agency Engine
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+      build-and-sync:
+        runs-on: ubuntu-latest
+        steps:
+          - name: Checkout Core Repo
+            uses: actions/checkout@v4
+
+          - name: Setup Bun
+            uses: oven-sh/setup-bun@v1
+
+
+          - name: Install and Build
+            run: |
+              bun install
+              bun run lint
+              bun run build
+
+          - name: Push Built Assets to Agency Repo
+            env:
+              PAT: ${{ secrets.AGENCY_PAT }}
+            run: |
+              git config --global user.name "GitHub Action Bot"
+              git config --global user.email "bot@apexsovereign.ai"
+              
+              # Clone the agency repository using the PAT
+              git clone https://x-access-token:${PAT}@github.com/apexsovereign-core/apexsovereign-agency.git agency-repo
+              
+
+              # Synchronize the canonical Python ingress runtime at repository root.
+              cp app.py main.py requirements.txt Procfile render.yaml agency-repo/
+              rm -rf agency-repo/backend
+              cp -r backend agency-repo/backend
+              cp index.html agency-repo/index.html
+              
+              # Commit and push changes back to the agency repo
+              cd agency-repo
+              git add app.py main.py requirements.txt Procfile render.yaml backend/ index.html
+              git commit -m "chore: sync FastAPI ingress runtime and storefront from apexsovereign-core" || echo "No changes to commit"
+              git push --force origin main

@@ -1,0 +1,124 @@
+# ============================================================================
+# ApexSovereign.ai - PRODUCTION MULTI-STAGE MULTI-ARCH DOCKERFILE
+# File: deploy/docker/Dockerfile.production
+# Platforms: linux/amd64, linux/arm64
+# Security: Rootless (UID 10001), Minimal Attack Surface, Read-Only RootFS Ready
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Stage 1: Base Chef Environment with eBPF Toolchain & LLVM
+# ----------------------------------------------------------------------------
+FROM --platform=$BUILDPLATFORM lukemathwalker/cargo-chef:latest-rust-1.80-bookworm AS chef
+WORKDIR /app
+
+# Install native compilation dependencies, LLVM, Clang, and libbpf
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    clang \
+    llvm \
+    libclang-dev \
+    libelf-dev \
+    libbpf-dev \
+    bpftool \
+    linux-libc-dev \
+    pkg-config \
+    libssl-dev \
+    ca-certificates \
+    curl \
+    musl-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+# ----------------------------------------------------------------------------
+# Stage 2: Workspace Dependency Recipe Planner
+# ----------------------------------------------------------------------------
+FROM chef AS planner
+WORKDIR /app
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+# ----------------------------------------------------------------------------
+# Stage 3: Dependency Caching & Release Binary Builder
+# ----------------------------------------------------------------------------
+FROM chef AS builder
+WORKDIR /app
+
+ARG TARGETARCH
+ARG BUILDPLATFORM
+
+# Copy prepared recipe from planner stage to lock build caching
+COPY --from=planner /app/recipe.json recipe.json
+
+# Cook workspace dependencies to populate cargo layer cache
+RUN cargo chef cook --release --recipe-path recipe.json
+
+# Copy full repository source tree
+COPY . .
+
+# Compile optimized, stripped release binaries across all workspace crates
+ENV RUSTFLAGS="-C target-cpu=generic -C link-arg=-s -C opt-level=3 -C lto=thin -C codegen-units=1"
+RUN cargo build --release -p sovereign-core --bin sovereign-core || \
+    cargo build --release --bin sovereign-core
+RUN if cargo check -p audit --bin audit 2>/dev/null; then \
+        cargo build --release -p audit --bin audit; \
+    fi
+
+# Strip debugging symbols to guarantee minimum artifact footprint
+RUN strip target/release/sovereign-core && \
+    chmod +x target/release/sovereign-core
+
+# ----------------------------------------------------------------------------
+# Stage 4: Hardened Production Runtime (Minimal Attack Surface, Non-Root)
+# ----------------------------------------------------------------------------
+FROM debian:bookworm-slim AS runtime
+
+# Metadata labels adhering to OCI image specification
+LABEL org.opencontainers.image.title="ApexSovereign Sovereign Compute Core" \
+      org.opencontainers.image.description="Real-Time Sovereign Compute Core, eBPF Sockmap Ingress & Atomic Settlement Mesh" \
+      org.opencontainers.image.vendor="ApexSovereign.ai" \
+      org.opencontainers.image.licenses="Proprietary" \
+      org.opencontainers.image.source="https://github.com/apexsovereign/apexsovereign"
+
+# Install absolute minimal shared libraries for runtime execution
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libssl3 \
+    libelf1 \
+    libbpf1 \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /usr/share/man /usr/share/doc
+
+# Create dedicated unprivileged user and group (UID 10001, GID 10001)
+RUN groupadd -g 10001 apex && \
+    useradd -u 10001 -g apex -s /sbin/nologin -M -d /home/apex apex && \
+    mkdir -p /home/apex /etc/apexsovereign /var/log/apexsovereign /tmp && \
+    chown -R apex:apex /home/apex /etc/apexsovereign /var/log/apexsovereign /tmp && \
+    chmod 1777 /tmp
+
+# Copy compiled binaries from builder stage
+COPY --from=builder --chown=apex:apex /app/target/release/sovereign-core /usr/local/bin/sovereign-core
+COPY --from=builder --chown=apex:apex /app/target/release/audit /usr/local/bin/audit-daemon 2>/dev/null || true
+
+# Verify execution permission
+RUN chmod 0755 /usr/local/bin/sovereign-core
+
+# Configure secure execution environment
+USER 10001:10001
+WORKDIR /home/apex
+
+# Expose HTTP orchestrator (8080), Prometheus metrics (9090), and QUIC/HTTP3 (8080/udp)
+EXPOSE 8080/tcp 8080/udp 9090/tcp
+
+# Environment defaults
+ENV RUST_LOG="info,sovereign_core=debug" \
+    PORT="8080" \
+    METRICS_PORT="9090" \
+    SOVEREIGN_BIND_ADDR="0.0.0.0" \
+    ENVIRONMENT="production" \
+    HOME="/home/apex"
+
+# Healthcheck probing standard liveness endpoint
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f -s http://127.0.0.1:8080/healthz || exit 1
+
+# Entrypoint running unified sovereign compute core orchestrator
+ENTRYPOINT ["/usr/local/bin/sovereign-core"]

@@ -1,0 +1,150 @@
+# ============================================================================
+# ApexSovereign.ai - PRODUCTION HELM CHART VALUES
+# File: deploy/k8s/values.yaml
+# Production overrides for multi-region zero-trust cluster deployment
+# ============================================================================
+
+global:
+  environment: production
+  organization: "apexsovereign.ai"
+  clusterDomain: "apexsovereign.local"
+
+replicaCount: 3
+
+image:
+  repository: "apexsovereign/sovereign-core"
+  pullPolicy: "IfNotPresent"
+  tag: "v1.0.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: "sovereign-core"
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: "sovereign-core-sa"
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9090"
+  prometheus.io/path: "/metrics"
+
+podSecurityContext:
+  runAsNonRoot: false
+  fsGroup: 0
+
+securityContext:
+  privileged: false
+  capabilities:
+    add:
+      - BPF
+      - NET_ADMIN
+      - SYS_ADMIN
+      - PERFMON
+  readOnlyRootFilesystem: true
+
+service:
+  type: LoadBalancer
+  port: 80
+  httpsPort: 443
+  http3Port: 443
+  metricsPort: 9090
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "external"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+
+ingress:
+  enabled: true
+  className: "traefik"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
+    traefik.ingress.kubernetes.io/router.entrypoints: "websecure,websecure-quic"
+  hosts:
+    - host: api.apexsovereign.ai
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: api-apexsovereign-tls
+      hosts:
+        - api.apexsovereign.ai
+
+resources:
+  limits:
+    cpu: "8000m"
+    memory: "16Gi"
+    ephemeral-storage: "4Gi"
+  requests:
+    cpu: "2000m"
+    memory: "4Gi"
+    ephemeral-storage: "1Gi"
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 30
+  targetCPUUtilizationPercentage: 75
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector:
+  node.kubernetes.io/instance-type: "accelerated-compute"
+
+tolerations:
+  - key: "nvidia.com/gpu"
+    operator: "Exists"
+    effect: "NoSchedule"
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: ["sovereign-core"]
+          topologyKey: "kubernetes.io/hostname"
+
+config:
+  bindAddr: "0.0.0.0"
+  port: 8080
+  metricsPort: 9090
+  region: "us-east-1"
+  ebpfEnabled: true
+  bpfSockmapPath: "/sys/fs/bpf/sovereign_sockmap"
+  meshIface: "eth0"
+  caCertPath: "/etc/apexsovereign/certs/ca.crt"
+  supabaseUrl: "https://apexsovereign.supabase.co"
+
+multiRegionNodes:
+  - id: "node-us-east-1a"
+    region: "us-east-1"
+    endpoint: "http://10.100.1.10:8000"
+    targetSlaMs: 18.0
+  - id: "node-us-west-2a"
+    region: "us-west-2"
+    endpoint: "http://10.100.2.10:8000"
+    targetSlaMs: 18.0
+  - id: "node-eu-central-1a"
+    region: "eu-central-1"
+    endpoint: "http://10.100.3.10:8000"
+    targetSlaMs: 18.0
+  - id: "node-ap-southeast-1a"
+    region: "ap-southeast-1"
+    endpoint: "http://10.100.4.10:8000"
+    targetSlaMs: 18.0
+
+blackwellClusters:
+  - domainId: "b200-nvlink-domain-01"
+    provider: "aws"
+    gpuCount: 8
+    bandwidthTbps: 1.8
+    precision: "FP4"
+  - domainId: "b200-nvlink-domain-02"
+    provider: "runpod"
+    gpuCount: 8
+    bandwidthTbps: 1.8
+    precision: "FP8"

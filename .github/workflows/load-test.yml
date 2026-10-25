@@ -1,0 +1,60 @@
+name: ApexSovereign Concurrent Micro-Debit Stress Pipeline
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  stress-test:
+    name: Execute Concurrent Micro-Debit Load Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python Runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-test.txt ]; then pip install -r requirements-test.txt; fi
+
+      - name: Validate Environment Secrets
+        run: |
+          if [ -z "${{ secrets.APEX_SETTLEMENT_HMAC_SECRET }}" ]; then
+            echo "::error::APEX_SETTLEMENT_HMAC_SECRET repository secret is missing."
+            exit 1
+          fi
+
+      - name: Run Concurrent Micro-Debit Stress Test
+        env:
+          APEX_SETTLEMENT_HMAC_SECRET: ${{ secrets.APEX_SETTLEMENT_HMAC_SECRET }}
+          PYTHONUNBUFFERED: "1"
+        run: |
+          python3 tests/concurrent_micro_debit_stress.py 2>&1 | tee server_test.log
+
+      - name: Output Server Audit Logs on Failure
+        if: failure()
+        run: |
+          echo "=== STRESS TEST FAILURE DETECTED: AUDIT LOG DUMP ==="
+          if [ -f server_test.log ]; then
+            cat server_test.log
+          else
+            echo "No log file (server_test.log) located."
+          fi
+
+      - name: Upload Test Logs Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stress-test-audit-logs
+          path: server_test.log
+          retention-days: 7

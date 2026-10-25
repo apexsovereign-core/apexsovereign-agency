@@ -1,0 +1,332 @@
+# ==============================================================================
+# ApexSovereign.ai - Operational Command 05: Kubernetes Production Architecture
+# Target: High-Availability Multi-Tenant Cluster Deployment
+# Namespaces, Backend (FastAPI), Frontend (React/Vite Nginx), HPA, Ingress, TLS
+# ==============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apexsovereign-prod
+  labels:
+    environment: production
+    compliance: soc2-type2
+    app.kubernetes.io/part-of: apexsovereign-core
+
+---
+# ------------------------------------------------------------------------------
+# ConfigMap & Secret Template
+# ------------------------------------------------------------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apexsovereign-config
+  namespace: apexsovereign-prod
+data:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+  PORT: "8000"
+  ALLOWED_ORIGINS: "https://apexsovereign.ai,https://www.apexsovereign.ai,https://dashboard.apexsovereign.ai"
+  SLA_TARGET_PCT: "99.999"
+  MAX_CUTOVER_LATENCY_MS: "1000.0"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: apexsovereign-secrets
+  namespace: apexsovereign-prod
+type: Opaque
+stringData:
+  SUPABASE_URL: "https://tpu7qjfzykbddulj6ga6qr.supabase.co"
+  SUPABASE_SERVICE_ROLE_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.production-placeholder"
+  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.production-anon-placeholder"
+  PAYPAL_CLIENT_ID: "AZ_PROD_PAYPAL_LIVE_CLIENT_ID"
+  PAYPAL_CLIENT_SECRET: "EP_PROD_PAYPAL_LIVE_SECRET"
+  ADMIN_ACCESS_T: "SEC_ADMIN_KEY_SOVEREIGN_2026_PROD"
+
+---
+# ------------------------------------------------------------------------------
+# Backend Deployment (FastAPI / Gunicorn / Uvicorn)
+# ------------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apexsovereign-backend
+  namespace: apexsovereign-prod
+  labels:
+    app.kubernetes.io/name: apexsovereign-backend
+    app.kubernetes.io/component: api-engine
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: apexsovereign-backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: apexsovereign-backend
+        app.kubernetes.io/component: api-engine
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+        - name: api-server
+          image: ghcr.io/apexsovereign/backend:v1.0.0
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: apexsovereign-config
+            - secretRef:
+                name: apexsovereign-secrets
+          ports:
+            - name: http-api
+              containerPort: 8000
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 2048Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http-api
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http-api
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 2
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apexsovereign-backend-svc
+  namespace: apexsovereign-prod
+  labels:
+    app.kubernetes.io/name: apexsovereign-backend
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http-api
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: apexsovereign-backend
+
+---
+# ------------------------------------------------------------------------------
+# Backend Horizontal Pod Autoscaler (HPA)
+# ------------------------------------------------------------------------------
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: apexsovereign-backend-hpa
+  namespace: apexsovereign-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: apexsovereign-backend
+  minReplicas: 3
+  maxReplicas: 15
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+---
+# ------------------------------------------------------------------------------
+# Frontend Deployment (Vite / React / Nginx)
+# ------------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apexsovereign-frontend
+  namespace: apexsovereign-prod
+  labels:
+    app.kubernetes.io/name: apexsovereign-frontend
+    app.kubernetes.io/component: web-ui
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: apexsovereign-frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: apexsovereign-frontend
+        app.kubernetes.io/component: web-ui
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+      containers:
+        - name: web-server
+          image: ghcr.io/apexsovereign/frontend:v1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http-web
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http-web
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http-web
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 2
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apexsovereign-frontend-svc
+  namespace: apexsovereign-prod
+  labels:
+    app.kubernetes.io/name: apexsovereign-frontend
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http-web
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: apexsovereign-frontend
+
+---
+# ------------------------------------------------------------------------------
+# Ingress Controller & Cert-Manager TLS Termination
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: apexsovereign-ingress
+  namespace: apexsovereign-prod
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "64m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/websocket-services: "apexsovereign-backend-svc"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Strict-Transport-Security: max-age=31536000; includeSubDomains; preload";
+spec:
+  tls:
+    - hosts:
+        - apexsovereign.ai
+        - www.apexsovereign.ai
+        - api.apexsovereign.ai
+      secretName: apexsovereign-tls-cert
+  rules:
+    - host: apexsovereign.ai
+      http:
+        paths:
+          # API & Orchestration Routing
+          - path: /v1
+            pathType: Prefix
+            backend:
+              service:
+                name: apexsovereign-backend-svc
+                port:
+                  number: 8000
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: apexsovereign-backend-svc
+                port:
+                  number: 8000
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: apexsovereign-backend-svc
+                port:
+                  number: 8000
+          # Frontend SPA Static Routing
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: apexsovereign-frontend-svc
+                port:
+                  number: 8080
+    - host: api.apexsovereign.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: apexsovereign-backend-svc
+                port:
+                  number: 8000

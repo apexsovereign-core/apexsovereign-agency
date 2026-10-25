@@ -1,0 +1,65 @@
+static_resources:
+  listeners:
+  - name: mtls_ingress_listener
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 8443
+    filter_chains:
+    - transport_socket:
+        name: envoy.transport_sockets.tls
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+          common_tls_context:
+            tls_certificates:
+            - certificate_chain:
+                filename: "/etc/envoy/certs/server.crt"
+              private_key:
+                filename: "/etc/envoy/certs/server.key"
+            validation_context:
+              trusted_ca:
+                filename: "/etc/envoy/certs/ca.crt"
+              match_typed_subject_alt_names:
+              - san_type: DNS
+                matcher:
+                  suffix: ".internal.apexsovereign.ai"
+          require_client_certificate: true
+      filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: ingress_mtls
+          route_config:
+            name: local_route
+            virtual_hosts:
+            - name: local_service
+              domains: ["*"]
+              routes:
+              - match:
+                  prefix: "/"
+                route:
+                  cluster: local_ledger_service
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+  clusters:
+  - name: local_ledger_service
+    connect_timeout: 0.25s
+    type: STRICT_DNS
+    lb_policy: ROUND_ROBIN
+    load_assignment:
+      cluster_name: local_ledger_service
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: 172.28.0.30
+                port_value: 8080
+admin:
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 9901

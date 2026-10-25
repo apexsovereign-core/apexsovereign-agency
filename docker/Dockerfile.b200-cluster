@@ -1,0 +1,17 @@
+# Multi-stage production container for ApexSovereign B200 Cluster Daemon
+FROM rust:nightly as builder
+
+WORKDIR /usr/src/apexsovereign
+COPY Cargo.toml ./
+COPY crates/cluster-mesh ./crates/cluster-mesh
+
+WORKDIR /usr/src/apexsovereign/crates/cluster-mesh
+RUN cargo build --release --bin b200-cluster-daemon
+
+FROM debian:bullseye-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/src/apexsovereign/crates/cluster-mesh/target/release/b200-cluster-daemon /usr/local/bin/b200-cluster-daemon
+
+EXPOSE 8095
+ENTRYPOINT ["/usr/local/bin/b200-cluster-daemon"]

@@ -1,0 +1,63 @@
+# ==============================================================================
+# APEXSOVEREIGN.AI — PROMETHEUS METRIC SCRAPING MATRIX
+# Path: deploy/monitoring/prometheus.yml
+# Target: Sub-18ms Latency Auditing, CU Burn Rate, and eBPF Packet Telemetry
+# ==============================================================================
+
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+  scrape_timeout: 3s
+
+scrape_configs:
+  # ----------------------------------------------------------------------------
+  # 1. AethelMesh Rust/Axum Routing Core
+  # ----------------------------------------------------------------------------
+  - job_name: "aethelmesh-core"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["aethelmesh:8080"]
+        labels:
+          tier: "routing-mesh"
+          cluster: "us-east-virginia"
+
+  # ----------------------------------------------------------------------------
+  # 2. AethelPay Express Settlement & Onboarding Gateway
+  # ----------------------------------------------------------------------------
+  - job_name: "aethelpay-gateway"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["aethelpay:3000"]
+        labels:
+          tier: "financial-ledger"
+          currency: "ComputeUnits"
+
+  # ----------------------------------------------------------------------------
+  # 3. AuraPharm Basal Load Molecular Sweeper
+  # ----------------------------------------------------------------------------
+  - job_name: "aurapharm-sweeper"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["aurapharm-sweeper:8001"]
+        labels:
+          tier: "bio-molecular"
+          model: "AlphaFold3"
+
+  # ----------------------------------------------------------------------------
+  # 4. Governance Sentinel & Telemetry Interceptor
+  # ----------------------------------------------------------------------------
+  - job_name: "governance-sentinel"
+    metrics_path: "/api/v1/governance/telemetry"
+    static_configs:
+      - targets: ["sentinel-watchdog:8000"]
+        labels:
+          tier: "circuit-breaker"
+
+  # ----------------------------------------------------------------------------
+  # 5. Redis Real-Time Stream & Idempotency Store
+  # ----------------------------------------------------------------------------
+  - job_name: "redis-stream"
+    static_configs:
+      - targets: ["redis:6379"]
+        labels:
+          tier: "event-buffer"

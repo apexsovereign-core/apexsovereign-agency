@@ -1,0 +1,114 @@
+# =============================================================================
+# APEXSOVEREIGN.AI - RENDER DEPLOYMENT SPECIFICATION (BLUEPRINT)
+# Service Name: apexsovereign-mesh
+# Hostname: apexsovereign-mesh.onrender.com
+# Region: ohio (Render's available US-East-adjacent region; verify measured edge RTT separately)
+# =============================================================================
+
+services:
+  # 1. Main High-Throughput Web Mesh API
+  - type: web
+    name: apexsovereign-mesh
+    env: python
+    region: ohio
+    plan: starter
+    rootDir: backend
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2 --proxy-headers"
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ENV
+        value: production
+      - key: BUILD_ID
+        value: apex-v2.4.8-gold
+      - key: LAUNCH_MODE
+        value: early_access
+      - key: PROVIDER_MODE
+        value: simulated
+      - key: LIVE_PAYMENTS_ACK
+        sync: false
+      - key: PAYPAL_ENV
+        value: sandbox
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: LEDGER_HMAC_KID
+        value: k1
+      - key: LEDGER_HMAC_KEYS_JSON
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: "https://www.apexsovereign.ai,https://apexsovereign.ai"
+      - key: WAITLIST_IP_SALT
+        sync: false
+      - key: DEPOSIT_MAX_TX_CENTS
+        value: "100000"
+      - key: DEPOSIT_MAX_DAY_CENTS
+        value: "200000"
+      - key: DEPOSIT_MAX_NEW_ACCOUNT_DAY_CENTS
+        value: "50000"
+      - key: SUPPLIER_BASE_URL
+        sync: false
+      - key: SUPPLIER_API_KEY
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+
+  # 2. Compute Metering Cron Worker (Runs every 5 minutes)
+  - type: cron
+    name: apexsovereign-metering
+    env: python
+    region: ohio
+    plan: starter
+    rootDir: backend
+    schedule: "*/5 * * * *"
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python -m app.jobs metering"
+    envVars:
+      - fromService:
+          type: web
+          name: apexsovereign-mesh
+          envVarKey: DATABASE_URL
+      - fromService:
+          type: web
+          name: apexsovereign-mesh
+          envVarKey: PROVIDER_MODE
+      - fromService:
+          type: web
+          name: apexsovereign-mesh
+          envVarKey: LEDGER_HMAC_KID
+      - fromService:
+          type: web
+          name: apexsovereign-mesh
+          envVarKey: LEDGER_HMAC_KEYS_JSON
+
+  # 3. PayPal Daily Settlement & Reconciliation Cron (Runs daily at midnight)
+  - type: cron
+    name: apexsovereign-reconcile
+    env: python
+    region: ohio
+    plan: starter
+    rootDir: backend
+    schedule: "0 0 * * *"
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python -m app.jobs reconcile"
+    envVars:
+      - fromService:
+          type: web
+          name: apexsovereign-mesh
+          envVarKey: DATABASE_URL
+      - fromService:
+          type: web
+          name: apexsovereign-mesh
+          envVarKey: PAYPAL_ENV

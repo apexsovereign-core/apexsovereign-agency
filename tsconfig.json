@@ -18,6 +18,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "next/link": [
+        "./src/components/NextLinkShim.tsx"
       ]
     },
     "allowImportingTsExtensions": true,

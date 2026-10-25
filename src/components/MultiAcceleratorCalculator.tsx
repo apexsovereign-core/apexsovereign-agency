@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { Cpu, DollarSign, TrendingDown, Zap, Server, Shield, Lock, Activity, Sparkles, RefreshCw } from 'lucide-react';
 
@@ -24,7 +26,7 @@ export const ACCELERATORS: AcceleratorSpec[] = [
     name: 'NVIDIA Rubin',
     model: 'Rubin HBM4 Enterprise Node',
     vram: '288GB HBM4 (22 TB/s)',
-    interconnect: '3.6 TB/s NVLink 6',
+    interconnect: '3.6 TB/s NVLink 6 Optical',
     spotPriceHr: 2.40,
     baselinePriceHr: 5.10,
     savingsPct: 52.9,
@@ -40,7 +42,7 @@ export const ACCELERATORS: AcceleratorSpec[] = [
     name: 'NVIDIA B200',
     model: 'Blackwell B200 NVL72 Rack',
     vram: '192GB HBM3e (8 TB/s)',
-    interconnect: '1.8 TB/s NVLink 5',
+    interconnect: '1.8 TB/s NVLink 5 Fabric',
     spotPriceHr: 2.85,
     baselinePriceHr: 4.60,
     savingsPct: 38.0,
@@ -129,6 +131,13 @@ export const MultiAcceleratorCalculator: React.FC = () => {
   const adjustGpus = (delta: number) => {
     setGpuCount((prev) => Math.max(1, Math.min(512, prev + delta)));
   };
+
+  const presetChips = [
+    { label: '[8 GPUs]', count: 8 },
+    { label: '[32 GPUs]', count: 32 },
+    { label: '[128 GPUs]', count: 128 },
+    { label: '[NVL72 Rack]', count: 72 },
+  ];
 
   return (
     <div className="w-full space-y-6">
@@ -260,19 +269,19 @@ export const MultiAcceleratorCalculator: React.FC = () => {
                 </button>
               </div>
 
-              {/* Quick Presets */}
+              {/* Exact Preset Fleet Chips */}
               <div className="flex flex-wrap gap-2 pt-1">
-                {[8, 32, 64, 128, 256].map((count) => (
+                {presetChips.map((chip) => (
                   <button
-                    key={count}
-                    onClick={() => setGpuCount(count)}
-                    className={`px-3 py-1 rounded-md text-xs font-mono transition ${
-                      gpuCount === count
-                        ? 'bg-[#00F0FF] text-[#020305] font-bold shadow-[0_0_12px_rgba(0,240,255,0.4)]'
+                    key={chip.label}
+                    onClick={() => setGpuCount(chip.count)}
+                    className={`px-3 py-1 rounded-md text-xs font-mono transition font-bold ${
+                      gpuCount === chip.count
+                        ? 'bg-[#00F0FF] text-[#020305] shadow-[0_0_12px_rgba(0,240,255,0.4)]'
                         : 'bg-[#050811] border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
                     }`}
                   >
-                    {count === 256 ? 'NVL72 Cluster' : `${count} GPUs`}
+                    {chip.label}
                   </button>
                 ))}
               </div>
@@ -345,3 +354,5 @@ export const MultiAcceleratorCalculator: React.FC = () => {
     </div>
   );
 };
+
+export default MultiAcceleratorCalculator;

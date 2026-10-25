@@ -7,6 +7,8 @@ import { EnterpriseBentoGrid } from './components/EnterpriseBentoGrid';
 import { TerminalCLIView } from './components/TerminalCLIView';
 import { FuturesView } from './components/FuturesView';
 import { BillingView } from './components/BillingView';
+import { ServiceSuiteMatrix } from './components/service-suite-matrix';
+import { HardwareDeconstructionStage } from './components/hardware-deconstruction-stage';
 import {
   Terminal,
   TrendingUp,
@@ -195,7 +197,7 @@ export function App() {
                   SCRUB LAYERS (L1 / L2 / L3)
                 </span>
               </div>
-              <ThreeServerBladeStage />
+              <HardwareDeconstructionStage />
             </section>
 
             {/* STAGE 2: Multi-Accelerator Switcher & Fleet Calculator */}
@@ -206,22 +208,27 @@ export function App() {
                     MODULE 02 // REAL-TIME SPOT ARBITRAGE
                   </span>
                   <h2 className="text-2xl font-bold text-white tracking-tight">
-                    Multi-Accelerator Switcher & Fleet Calculator
+                    Spot Arbitrage Stepper Calculator
                   </h2>
                 </div>
                 <span className="text-xs font-mono text-slate-500 hidden sm:inline">
-                  OBSIDIAN GLASS STEPPERS
+                  PRESETS: [8 GPUs] · [32 GPUs] · [128 GPUs] · [NVL72 Rack]
                 </span>
               </div>
               <MultiAcceleratorCalculator />
             </section>
 
-            {/* STAGE 3: Animated Global Vector Mesh Canvas */}
+            {/* STAGE 3: 6 Core Institutional Services Suite */}
+            <section className="space-y-4">
+              <ServiceSuiteMatrix />
+            </section>
+
+            {/* STAGE 4: Animated Global Vector Mesh Canvas */}
             <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-xs font-mono text-[#00F0FF] uppercase tracking-wider">
-                    MODULE 03 // VECTOR ROUTING MESH
+                    MODULE 04 // VECTOR ROUTING MESH
                   </span>
                   <h2 className="text-2xl font-bold text-white tracking-tight">
                     Global Ingress Mesh & Real-Time Pulses
@@ -234,7 +241,7 @@ export function App() {
               <GlobalMeshCanvas />
             </section>
 
-            {/* STAGE 4: Enterprise Services 6-Card Bento Grid */}
+            {/* STAGE 5: Enterprise Services 6-Card Bento Grid */}
             <section className="space-y-4">
               <EnterpriseBentoGrid
                 onSelectAction={(actionId) => {

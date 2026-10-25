@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
-import { CyanFacetedJewelEmblem } from '../src/components/CyanFacetedJewelEmblem';
-import Link from 'next/link';
+import Navbar from '../components/navbar';
+import Footer from '../components/footer';
 
 export const metadata: Metadata = {
   title: 'ApexSovereign.ai | The Autonomous Global Sovereign Compute Exchange',
@@ -24,83 +24,32 @@ export default function RootLayout({
       <head>
         <link rel="icon" type="image/svg+xml" href="/icon.svg" />
       </head>
-      <body className="min-h-screen bg-[#020305] text-slate-100 font-sans antialiased selection:bg-[#00F0FF]/30 selection:text-white">
-        {/* Navigation Header with Permanent Cyan Faceted Jewel Emblem */}
-        <header className="sticky top-0 z-50 w-full border-b border-[#00F0FF]/20 bg-[#080D16]/85 backdrop-blur-2xl">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between gap-4">
-            <Link href="/" className="flex items-center gap-3 group">
-              <CyanFacetedJewelEmblem className="w-8 h-8" />
-              <div className="flex flex-col">
-                <span className="text-base sm:text-lg font-extrabold tracking-wider font-mono text-white group-hover:text-[#00F0FF] transition">
-                  APEXSOVEREIGN<span className="text-[#00F0FF]">.AI</span>
-                </span>
-                <span className="text-[9px] font-mono text-slate-400 tracking-widest uppercase">
-                  TIER-6 SOVEREIGN INSTITUTIONAL NETWORK
-                </span>
-              </div>
-            </Link>
+      <body className="min-h-screen bg-[#020305] text-slate-100 font-sans antialiased selection:bg-[#00F0FF]/30 selection:text-white flex flex-col justify-between">
+        <Navbar />
 
-            <nav className="hidden md:flex items-center gap-2">
-              <Link
-                href="/"
-                className="px-3 py-1.5 rounded-lg text-xs font-mono tracking-wider text-slate-400 hover:text-white hover:bg-slate-900/60 transition"
-              >
-                EXCHANGES
-              </Link>
-              <Link
-                href="/terminal"
-                className="px-3 py-1.5 rounded-lg text-xs font-mono tracking-wider text-slate-400 hover:text-white hover:bg-slate-900/60 transition"
-              >
-                TERMINAL
-              </Link>
-              <Link
-                href="/futures"
-                className="px-3 py-1.5 rounded-lg text-xs font-mono tracking-wider text-slate-400 hover:text-white hover:bg-slate-900/60 transition"
-              >
-                FUTURES
-              </Link>
-              <Link
-                href="/billing"
-                className="px-3 py-1.5 rounded-lg text-xs font-mono tracking-wider text-slate-400 hover:text-white hover:bg-slate-900/60 transition"
-              >
-                BILLING & LEDGER
-              </Link>
-            </nav>
-
-            <div className="flex items-center gap-3">
-              <div className="hidden xl:flex items-center gap-2 px-3 py-1 rounded-full bg-[#030508] border border-slate-800 text-[10px] font-mono">
-                <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
-                <span className="text-slate-300">10.4ms SLA</span>
-                <span className="text-slate-600">|</span>
-                <span className="text-emerald-400 font-bold">AMD SEV-SNP & CC</span>
-                <span className="text-slate-600">|</span>
-                <span className="text-[#00F0FF]">$1.00 = 100 CU</span>
-              </div>
-
-              <Link
-                href="/terminal"
-                className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl bg-[#00F0FF] hover:bg-[#38BDF8] text-[#020305] font-mono font-bold text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(0,240,255,0.4)] transition"
-              >
-                LAUNCH TERMINAL
-              </Link>
-            </div>
+        {/* Global Network Telemetry Banner */}
+        <div className="w-full bg-[#030508] border-b border-[#00F0FF]/15 px-4 py-2 text-center overflow-x-auto whitespace-nowrap">
+          <div className="inline-flex items-center gap-4 text-[10px] sm:text-[11px] font-mono tracking-wider text-slate-300">
+            <span className="flex items-center gap-1.5 text-[#00F0FF] font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00F0FF] animate-ping" />
+              10.4ms SLA LATENCY
+            </span>
+            <span className="text-slate-600">•</span>
+            <span className="text-[#10B981] font-bold">99.999% MESH UPTIME</span>
+            <span className="text-slate-600">•</span>
+            <span className="text-emerald-400 font-bold">AMD SEV-SNP & NVIDIA CC ENCLAVES</span>
+            <span className="text-slate-600">•</span>
+            <span className="text-white">$1.00 USD = 100 CU ATOMIC LEDGER</span>
+            <span className="text-slate-600">•</span>
+            <span className="text-[#38BDF8] font-bold">1.44 EXAFLOPS AGGREGATE POOL</span>
           </div>
-        </header>
+        </div>
 
-        {children}
+        <main className="flex-1 w-full">
+          {children}
+        </main>
 
-        {/* Global Footer */}
-        <footer className="w-full border-t border-slate-900 bg-[#020305] py-8 text-xs font-mono text-slate-500 mt-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <CyanFacetedJewelEmblem className="w-6 h-6" />
-              <span>APEXSOVEREIGN.AI // CRYPTOGRAPHIC CONTROL PLANE · V3.6.0</span>
-            </div>
-            <div className="text-[10px] text-slate-600">
-              ALL SYSTEMS NOMINAL · 10.4ms P99 SLA · $1.00 = 100 CU
-            </div>
-          </div>
-        </footer>
+        <Footer />
       </body>
     </html>
   );

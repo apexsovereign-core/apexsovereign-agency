@@ -53,7 +53,7 @@ jobs:
 
       - name: Upload Test Logs Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: stress-test-audit-logs
           path: server_test.log

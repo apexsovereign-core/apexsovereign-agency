@@ -106,7 +106,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Cache Cargo Dependencies & Build Artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index/
@@ -174,7 +174,7 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Cache Cargo Dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index/

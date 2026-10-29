@@ -30,7 +30,7 @@ async def get_current_user(
     """
     Resolves the authenticated user from:
     1. 'Authorization: Bearer <Supabase JWT>'
-    2. 'Authorization: Bearer <API Key>' (sk_live_apex_...)
+    2. 'Authorization: Bearer <API Key>' (REDACTED)
     3. 'X-API-Key: <API Key>'
     """
     token: Optional[str] = None

@@ -43,8 +43,8 @@ TENANT_RATE_BUCKETS: Dict[str, List[float]] = {}
 ACTIVE_VAULT_KEYS: Dict[str, Dict[str, Any]] = {
     "tenant-sovereign-01": {
         "alias": "primary-institutional-key",
-        "token": "apex_sk_live_9941a8b1c4e7f302d8e6a1b2c3d4e5f6",
-        "token_hash": hashlib.sha256("apex_sk_live_9941a8b1c4e7f302d8e6a1b2c3d4e5f6".encode()).hexdigest(),
+        "token": "REDACTED",
+        "token_hash": hashlib.sha256("REDACTED".encode()).hexdigest(),
         "hmac_secret": os.getenv("APEX_HMAC_SECRET", "apex-vault-sovereign-secret-2026"),
         "permissions": ["compute:dispatch", "agent:swarm", "crm:read", "billing:settle", "telemetry:stream"],
         "created_at": "2026-09-23T00:00:00Z",
@@ -53,8 +53,8 @@ ACTIVE_VAULT_KEYS: Dict[str, Dict[str, Any]] = {
     },
     "tenant-admin-node01": {
         "alias": "root-core-infrastructure-key",
-        "token": "apex_sk_live_0001ff8a29b4e5c83011a7b8c9d0e1f2",
-        "token_hash": hashlib.sha256("apex_sk_live_0001ff8a29b4e5c83011a7b8c9d0e1f2".encode()).hexdigest(),
+        "token": "REDACTED",
+        "token_hash": hashlib.sha256("REDACTED".encode()).hexdigest(),
         "hmac_secret": os.getenv("APEX_HMAC_SECRET", "apex-vault-sovereign-secret-2026"),
         "permissions": ["*"],
         "created_at": "2026-09-23T00:00:00Z",

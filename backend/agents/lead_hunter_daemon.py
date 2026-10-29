@@ -31,7 +31,7 @@ logger = logging.getLogger("apexsovereign.agents.leadhunter")
 # 1. CORE OPERATIONAL PARAMETERS & ARBITRAGE CONSTANTS
 # ------------------------------------------------------------------------------
 PRIMARY_DOMAIN = os.getenv("PRIMARY_DOMAIN", "apexsovereign.ai")
-HMAC_SECRET = os.getenv("APEX_SETTLEMENT_HMAC_SECRET", "e7b4a29910c5384dbff9a83610214c776082d03ba651ec309f7a9359a60cb3c5").encode("utf-8")
+HMAC_SECRET = os.getenv("APEX_SETTLEMENT_HMAC_SECRET", "REDACTED").encode("utf-8")
 CU_PER_USD = float(os.getenv("USD_TO_CU_RATIO", "100.000000"))
 MIN_ESCROW_DEPOSIT_USD = float(os.getenv("MIN_ESCROW_DEPOSIT_USD", "10.00"))
 

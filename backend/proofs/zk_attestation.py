@@ -266,7 +266,7 @@ if __name__ == "__main__":
         region_name="us-east-virginia",
         enclave_measurement_raw="0x9e8a7c6b5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a",
         workload_input_hash="0xabcdef1234567890abcdef1234567890abcdef12",
-        secret_enclave_key="0x4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e"
+        secret_enclave_key="REDACTED"
     )
 
     print("\n--- SOVEREIGN ZK EXECUTION ATTESTATION RECEIPT ---")

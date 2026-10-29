@@ -27,7 +27,7 @@ def execute_atomic_settlement(user_id: str, units: int) -> dict:
         "deduct_compute_units",
         {
             "p_user_id": user_id,
-            "p_units_to_deduct": units
+            "p_cu_amount": units
         }
     ).execute()
     

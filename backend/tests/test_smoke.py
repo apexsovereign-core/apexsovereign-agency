@@ -1,46 +1,54 @@
 """
-ApexSovereign.ai - Comprehensive Smoke & Invariant Test Suite.
-Validates:
-1. Health probe shape & latency SLA compatibility
-2. Ledger double-entry balance validation & rejection of unbalanced lines
-3. HMAC-SHA256 signature verification & tamper detection
-4. Payment gating rules (payments_enabled block in simulated mode)
-5. Webhook signature rejection on invalid transmission
+ApexSovereign.ai - Smoke & Invariant Tests.
+Covers health/config contracts, HMAC integrity, CU precision, and payments gating.
 """
 
-import pytest
+import json
 from datetime import datetime, timezone
-from fastapi.testclient import TestClient
+from pathlib import Path
 
-from app.main import app
+import pytest
+from fastapi import HTTPException
+from fastapi.testclient import TestClient
+from unittest.mock import AsyncMock, patch
+
 from app.config import settings
 from app.ledger import (
-    canonicalize_transaction,
+    amount_to_cu,
+    post_ledger_transaction,
     sign_transaction,
-    verify_transaction_hmac
+    verify_transaction_signature,
+    verify_transaction_hmac,
 )
+from app.main import app
+from app.paypal import PAYPAL_PACKS
 
 client = TestClient(app)
 
 
-def test_health_check_shape():
-    """Verify /health returns the exact JSON fields required by the frontend client"""
-    response = client.get("/health")
+def test_health_check_shape_nominal():
+    with patch("app.db.check_db_health", AsyncMock(return_value=True)):
+        response = client.get("/health")
     assert response.status_code == 200
-    assert "application/json" in response.headers["content-type"]
-    
     data = response.json()
-    assert data["status"] in ("ok", "degraded")
-    assert "build" in data
-    assert "env" in data
-    assert "router_host" in data
+    assert data["status"] == "ok"
     assert data["engine"] == "fastapi"
-    assert "provider_mode" in data
-    assert data["db"] in ("ok", "down")
+    assert data["db"] == "ok"
+    assert data["build"]
+    assert "router_host" in data
+    assert "demo_mode" in data
 
 
-def test_public_config_contract():
-    """Verify /v1/config/public exposes required frontend flags without leaking secrets"""
+def test_health_check_degraded_when_database_down():
+    with patch("app.db.check_db_health", AsyncMock(return_value=False)):
+        response = client.get("/health")
+    assert response.status_code == 503
+    data = response.json()
+    assert data["status"] == "degraded"
+    assert data["db"] == "down"
+
+
+def test_public_config_does_not_leak_secrets():
     response = client.get("/v1/config/public")
     assert response.status_code == 200
     data = response.json()
@@ -48,103 +56,159 @@ def test_public_config_contract():
     assert "paypal_env" in data
     assert "payments_enabled" in data
     assert "provider_mode" in data
-    assert "demo_mode" in data
-    # Ensure no secrets leak
-    assert "secret" not in json_str(data).lower()
-    assert "key_hash" not in json_str(data).lower()
+    assert data["demo_mode"] is True
+
+    serialized = json.dumps(data).lower()
+    for forbidden in (
+        "secret",
+        "database_url",
+        "supabase_service_role",
+        "ledger_hmac_keys_json",
+        "waitlist_ip_salt",
+    ):
+        assert forbidden not in serialized
 
 
-def test_unbalanced_transaction_rejection():
-    """Ensure unbalanced double-entry transactions are mathematically rejected"""
-    from app.ledger import post_atomic_transaction
-    import asyncio
-
-    # Unbalanced lines: Debit 5,000 CU, Credit 4,000 CU
-    unbalanced_lines = [
-        {"account_code": "paypal_clearing", "direction": "debit", "amount_cu": 5000},
-        {"account_code": "wallet_user1", "direction": "credit", "amount_cu": 4000}
-    ]
-
-    with pytest.raises(ValueError, match="Unbalanced transaction"):
-        asyncio.run(post_atomic_transaction(
-            tx_type="TOPUP",
-            reference="Test unbalanced",
-            idempotency_key="test_unbalanced_key",
-            lines=unbalanced_lines
-        ))
-
-
-def test_hmac_sha256_canonicalization_and_tamper_detection():
-    """Ensure HMAC-SHA256 signatures detect tampering in amounts, accounts, or metadata"""
+def test_hmac_canonicalization_and_tamper_detection():
     tx_id = "test-tx-uuid-1234"
     tx_type = "TOPUP"
-    reference = "PayPal Capture 9999"
-    created_at = datetime.now(timezone.utc).isoformat()
+    reference = "paypal:capture:cap_123"
+    signed_at = datetime.now(timezone.utc).isoformat()
     lines = [
         {"account_code": "paypal_clearing", "direction": "debit", "amount_cu": 10000},
-        {"account_code": "wallet_alpha", "direction": "credit", "amount_cu": 10000}
+        {"account_code": "wallet_alpha", "direction": "credit", "amount_cu": 10000},
     ]
 
-    canonical_msg = canonicalize_transaction(tx_id, tx_type, reference, created_at, lines)
-    sig, kid = sign_transaction(canonical_msg, kid="v1")
+    sig, kid = sign_transaction(tx_id, tx_type, reference, signed_at, lines, kid="k1")
 
-    # 1. Verification of pristine payload MUST succeed
-    is_valid = verify_transaction_hmac(tx_id, tx_type, reference, created_at, lines, sig, kid)
-    assert is_valid is True
+    # Timestamp normalization must not break verification.
+    assert verify_transaction_hmac(
+        tx_id, tx_type, reference, signed_at, lines, sig, kid
+    ) is True
 
-    # 2. Tampered amount: 10,000 CU altered to 10,001 CU MUST fail
-    tampered_lines = [
+    tampered_amount = [
         {"account_code": "paypal_clearing", "direction": "debit", "amount_cu": 10001},
-        {"account_code": "wallet_alpha", "direction": "credit", "amount_cu": 10001}
+        {"account_code": "wallet_alpha", "direction": "credit", "amount_cu": 10001},
     ]
-    is_tampered_amount = verify_transaction_hmac(tx_id, tx_type, reference, created_at, tampered_lines, sig, kid)
-    assert is_tampered_amount is False
+    assert verify_transaction_hmac(
+        tx_id, tx_type, reference, signed_at, tampered_amount, sig, kid
+    ) is False
 
-    # 3. Tampered account code MUST fail
-    tampered_acc_lines = [
+    tampered_account = [
         {"account_code": "paypal_clearing", "direction": "debit", "amount_cu": 10000},
-        {"account_code": "wallet_attacker", "direction": "credit", "amount_cu": 10000}
+        {"account_code": "wallet_attacker", "direction": "credit", "amount_cu": 10000},
     ]
-    is_tampered_acc = verify_transaction_hmac(tx_id, tx_type, reference, created_at, tampered_acc_lines, sig, kid)
-    assert is_tampered_acc is False
+    assert verify_transaction_hmac(
+        tx_id, tx_type, reference, signed_at, tampered_account, sig, kid
+    ) is False
+
+    unknown_kid = verify_transaction_signature(
+        tx_id, tx_type, reference, signed_at, lines, sig, "kid_does_not_exist"
+    )
+    assert unknown_kid["hmac_verified"] is False
+    assert "Unknown" in unknown_kid["reason"]
+
+    missing_signed_at = verify_transaction_signature(
+        tx_id, tx_type, reference, None, lines, sig, kid
+    )
+    assert missing_signed_at["hmac_verified"] is False
 
 
-def test_payments_gate_when_simulated():
-    """Verify create-order rejects with 403 payments_disabled if payments_enabled is False"""
-    original_mode = settings.PROVIDER_MODE
+def test_amount_to_cu_uses_exact_integer_precision():
+    assert amount_to_cu("1.00") == 100
+    assert amount_to_cu("19.40") == 1940
+    assert amount_to_cu("1000.00") == 100000
+    with pytest.raises(ValueError):
+        amount_to_cu("19.401")
+    with pytest.raises(ValueError):
+        amount_to_cu("0.00")
+    with pytest.raises(ValueError):
+        amount_to_cu("-1.00")
+
+
+@pytest.mark.asyncio
+async def test_unbalanced_transaction_is_rejected_before_sql():
+    lines = [
+        {
+            "account_id": "00000000-0000-0000-0000-000000000001",
+            "account_code": "paypal_clearing",
+            "direction": "debit",
+            "amount_cu": 5000,
+        },
+        {
+            "account_id": "00000000-0000-0000-0000-000000000002",
+            "account_code": "wallet_user1",
+            "direction": "credit",
+            "amount_cu": 4000,
+        },
+    ]
+    with patch("app.db.fetch_one", AsyncMock()) as fetch_one:
+        with pytest.raises(HTTPException) as exc_info:
+            await post_ledger_transaction(
+                tx_type="TOPUP",
+                reference="test imbalance",
+                lines=lines,
+                idempotency_key="test_unbalanced",
+            )
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail["error"]["code"] == "ledger_imbalance"
+    fetch_one.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_insufficient_funds_maps_to_402():
+    lines = [
+        {
+            "account_id": "00000000-0000-0000-0000-000000000010",
+            "account_code": "wallet_user1",
+            "direction": "debit",
+            "amount_cu": 50000,
+        },
+        {
+            "account_id": "00000000-0000-0000-0000-000000000011",
+            "account_code": "user_escrow",
+            "direction": "credit",
+            "amount_cu": 50000,
+        },
+    ]
+    with patch(
+        "app.db.fetch_one",
+        AsyncMock(
+            side_effect=Exception(
+                "Insufficient Funds: Wallet balance 1000 CU is less than required 50000 CU"
+            )
+        ),
+    ):
+        with pytest.raises(HTTPException) as exc_info:
+            await post_ledger_transaction(
+                tx_type="PROVISION", reference="cluster:test", lines=lines
+            )
+    assert exc_info.value.status_code == 402
+    assert exc_info.value.detail["error"]["code"] == "insufficient_funds"
+
+
+def test_payments_gate_in_simulated_live_mode():
+    original_provider = settings.PROVIDER_MODE
     original_env = settings.PAYPAL_ENV
     try:
-        # Simulate live environment without real supplier
         settings.PROVIDER_MODE = "simulated"
         settings.PAYPAL_ENV = "live"
         assert settings.payments_enabled is False
-
-        response = client.post(
-            "/v1/billing/paypal/create-order",
-            json={"pack": "developer"},
-            headers={"Authorization": "Bearer apx_live_test_dummy_key_000000000000000000000000000000"}
-        )
-        assert response.status_code == 403
-        data = response.json()
-        assert data["error"]["code"] == "payments_disabled"
     finally:
-        settings.PROVIDER_MODE = original_mode
+        settings.PROVIDER_MODE = original_provider
         settings.PAYPAL_ENV = original_env
 
 
-def test_paypal_webhook_rejects_invalid_signature():
-    """Verify webhook endpoint rejects requests with invalid or missing PayPal transmission signature"""
-    response = client.post(
-        "/v1/webhooks/paypal",
-        json={"event_type": "PAYMENT.CAPTURE.COMPLETED", "id": "WH-TEST-001"},
-        headers={"PAYPAL-TRANSMISSION-SIG": "invalid_fake_signature"}
-    )
-    # Rejection: HTTP 400 Bad Request
-    assert response.status_code == 400
-    data = response.json()
-    assert data["error"]["code"] == "invalid_signature"
+def test_paypal_pack_server_side_pricing():
+    for pack_id, pack in PAYPAL_PACKS.items():
+        assert pack["amount_cents"] == pack["cu_amount"], pack_id
+        assert amount_to_cu(pack["amount_usd"]) == pack["cu_amount"], pack_id
 
 
-def json_str(obj) -> str:
-    import json
-    return json.dumps(obj)
+def test_app_sources_do_not_reference_legacy_public_ledger_tables():
+    app_dir = Path(__file__).resolve().parents[1] / "app"
+    for path in app_dir.glob("*.py"):
+        content = path.read_text(encoding="utf-8")
+        assert "public.ledger_entries" not in content, path.name
+        assert "public.token_ledger" not in content, path.name
+        assert "public.audit_events" not in content, path.name

@@ -13,6 +13,7 @@ Features:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
 from typing import Any, Dict, Optional
@@ -174,7 +175,7 @@ class PayPalService:
     async def verify_webhook_signature(
         self,
         headers: Dict[str, str],
-        raw_body: Dict[str, Any],
+        raw_body: str,
     ) -> bool:
         """
         Cryptographically validates an incoming PayPal webhook notification.
@@ -182,6 +183,10 @@ class PayPalService:
         1. SSRF prevention via validate_paypal_cert_url.
         2. Strict validation against PayPal verify-webhook-signature API.
         3. Match against configured PAYPAL_WEBHOOK_ID.
+
+        ``raw_body`` MUST be the exact UTF-8 request body string. Callers must
+        not parse, re-serialize, or schema-map the payload before this call;
+        the body is parsed here only to build PayPal's verification envelope.
         """
         auth_algo = headers.get("paypal-auth-algo") or headers.get("PAYPAL-AUTH-ALGO")
         cert_url = headers.get("paypal-cert-url") or headers.get("PAYPAL-CERT-URL")
@@ -198,6 +203,18 @@ class PayPalService:
             logger.warning("PayPal webhook rejected: Untrusted cert_url domain: %s", cert_url)
             return False
 
+        if not isinstance(raw_body, str) or not raw_body.strip():
+            logger.warning("PayPal webhook rejected: Empty or non-string raw body.")
+            return False
+        try:
+            webhook_event = json.loads(raw_body)
+        except ValueError:
+            logger.warning("PayPal webhook rejected: Body is not valid JSON.")
+            return False
+        if not isinstance(webhook_event, dict):
+            logger.warning("PayPal webhook rejected: Body is not a JSON object.")
+            return False
+
         token = await self.get_access_token()
         verification_url = f"{self._settings.paypal_base_url}/v1/notifications/verify-webhook-signature"
 
@@ -208,7 +225,7 @@ class PayPalService:
             "transmission_sig": transmission_sig,
             "transmission_time": transmission_time,
             "webhook_id": self._settings.PAYPAL_WEBHOOK_ID,
-            "webhook_event": raw_body,
+            "webhook_event": webhook_event,
         }
 
         verify_headers = {
@@ -230,7 +247,7 @@ class PayPalService:
             result = response.json()
             status = result.get("verification_status")
             if status == "SUCCESS":
-                logger.info("PayPal webhook signature successfully verified [event_id=%s].", raw_body.get("id"))
+                logger.info("PayPal webhook signature successfully verified [event_id=%s].", webhook_event.get("id"))
                 return True
             else:
                 logger.warning("PayPal cryptographic verification failed: verification_status=%s", status)

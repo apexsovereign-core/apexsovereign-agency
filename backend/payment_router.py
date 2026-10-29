@@ -23,16 +23,18 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 # PayPal Configuration
 # ---------------------------------------------------------------------------
-PAYPAL_MODE = os.getenv("PAYPAL_MODE", "sandbox").lower()
+try:  # ``python backend/payment_router.py`` / ``import payment_router``.
+    from paypal_env import paypal_api_base, resolve_paypal_env
+except ImportError:  # ``import backend.payment_router`` from the repo root.
+    from backend.paypal_env import paypal_api_base, resolve_paypal_env
+
+# Canonical switch: PAYPAL_ENV (sandbox by default).
+PAYPAL_ENV = resolve_paypal_env()
 PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
 PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "")
 PAYPAL_WEBHOOK_ID = os.getenv("PAYPAL_WEBHOOK_ID", "")
 
-PAYPAL_BASE_URL = (
-    "https://api-m.paypal.com" 
-    if PAYPAL_MODE == "live" 
-    else "https://api-m.sandbox.paypal.com"
-)
+PAYPAL_BASE_URL = paypal_api_base(PAYPAL_ENV)
 
 # In-memory access token cache
 _token_cache: Dict[str, Any] = {"token": None, "expires_at": 0}

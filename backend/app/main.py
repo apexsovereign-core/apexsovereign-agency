@@ -32,7 +32,14 @@ logger = logging.getLogger("apex.main")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info(f"Starting ApexSovereign.ai Master Core Engine (Build: {settings.BUILD_ID}, Env: {settings.ENV})")
+    # Fail closed on missing secrets before accepting any traffic.
+    settings.validate_runtime()
+    logger.info(
+        "Starting ApexSovereign.ai Master Core Engine (Build: %s, Env: %s, Demo: %s)",
+        settings.BUILD_ID,
+        settings.ENV,
+        settings.DEMO_MODE,
+    )
     await db.init_pool()
     yield
     logger.info("Shutting down ApexSovereign.ai Core Engine...")

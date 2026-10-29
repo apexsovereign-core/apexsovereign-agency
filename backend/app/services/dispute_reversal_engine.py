@@ -119,8 +119,12 @@ class PayPalDisputeReversalEngine:
         from backend.app.services.paypal_service import get_paypal_service
         paypal_svc = get_paypal_service()
         try:
-            raw_dict = json.loads(raw_body_bytes.decode("utf-8"))
-            return await paypal_svc.verify_webhook_signature(headers, raw_dict)
+            raw_body_text = raw_body_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            logger.error("Dispute verifier: webhook body is not UTF-8.")
+            return False
+        try:
+            return await paypal_svc.verify_webhook_signature(headers, raw_body_text)
         except Exception as e:
             logger.error("Error during PayPal REST API verification: %s", str(e))
             return False

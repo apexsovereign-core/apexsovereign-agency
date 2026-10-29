@@ -21,31 +21,48 @@ _last_health_status: bool = False
 _HEALTH_CACHE_TTL_SEC: float = 2.0
 
 
+def _offline_mode_allowed() -> bool:
+    """Offline operation requires explicit DEMO_MODE and a non-production env."""
+    return bool(settings.DEMO_MODE) and not settings.is_production
+
+
 async def init_pool() -> Optional[AsyncConnectionPool]:
+    """
+    Open the Postgres pool or abort startup.
+
+    Production (ENV=production or PAYPAL_ENV=live) always fails closed. Offline
+    operation is permitted only when DEMO_MODE=true is explicitly set outside
+    production; callers must then return explicit simulated/unavailable states.
+    """
     global _pool
-    if not settings.DATABASE_URL:
-        logger.warning("DATABASE_URL not configured. Running in offline/disconnected database mode.")
-        return None
+
+    if not settings.DATABASE_URL.strip():
+        if _offline_mode_allowed():
+            logger.warning("DEMO_MODE=true: DATABASE_URL absent; database is offline.")
+            _pool = None
+            return None
+        raise RuntimeError("DATABASE_URL is required; refusing to start without a database.")
 
     try:
-        conninfo = settings.DATABASE_URL
-        # Ensure search_path=apex is enforced on connections if possible
         _pool = AsyncConnectionPool(
-            conninfo=conninfo,
+            conninfo=settings.DATABASE_URL,
             min_size=2,
             max_size=20,
             timeout=10.0,
             max_idle=300.0,
             open=False,
-            kwargs={"autocommit": True, "row_factory": dict_row}
+            kwargs={"autocommit": True, "row_factory": dict_row},
         )
         await _pool.open()
         logger.info("Database connection pool established successfully.")
         return _pool
-    except Exception as e:
-        logger.error(f"Failed to initialize database pool: {e}")
+    except Exception as exc:
         _pool = None
-        return None
+        if _offline_mode_allowed():
+            logger.warning("DEMO_MODE=true: database pool unavailable; running offline.")
+            return None
+        logger.error("Failed to initialize database pool: %s", exc.__class__.__name__)
+        raise RuntimeError("Database pool initialization failed; refusing to start.") from exc
 
 
 async def close_pool():

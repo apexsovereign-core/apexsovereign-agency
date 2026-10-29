@@ -2203,7 +2203,7 @@
 
       if (state.activeCodeTab === 'curl') {
         box.textContent = `curl -X POST https://api.apexsovereign.ai/v1/compute/allocate \\
-  -H "Authorization: Bearer REDACTED" \\
+  -H "Authorization: Bearer <API_KEY>" \\
   -H "Content-Type: application/json" \\
   -d '{
     "cluster_model": "${state.selectedModel}",

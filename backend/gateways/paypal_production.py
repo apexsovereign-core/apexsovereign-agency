@@ -36,23 +36,28 @@ logger = logging.getLogger("apexsovereign.gateways.paypal")
 # ----------------------------------------------------------------------------
 # 2. ENVIRONMENT & CREDENTIAL HARVESTING
 # ----------------------------------------------------------------------------
-PAYPAL_MODE = os.getenv("PAYPAL_MODE", "live").lower()
-PAYPAL_WEBHOOK_ID = os.getenv("PAYPAL_WEBHOOK_ID", "WH-LIVE-APEXSOVEREIGN-MASTER-01")
+try:  # Imported as ``backend.gateways.paypal_production``.
+    from backend.paypal_env import paypal_api_base, resolve_paypal_env
+except ImportError:  # Executed as a standalone script from this directory.
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from paypal_env import paypal_api_base, resolve_paypal_env
+
+# Canonical switch: PAYPAL_ENV (sandbox by default).
+PAYPAL_ENV = resolve_paypal_env()
+PAYPAL_WEBHOOK_ID = os.getenv("PAYPAL_WEBHOOK_ID", "")
 PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
 PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "")
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://api.apexsovereign.ai")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
-PAYPAL_API_BASE = (
-    "https://api-m.paypal.com" if PAYPAL_MODE == "live" else "https://api-m.sandbox.paypal.com"
-)
+PAYPAL_API_BASE = paypal_api_base(PAYPAL_ENV)
 
 CU_PER_USD = 100.000000  # Fundamental Sovereign Invariant: $1.00 = 100 CU
 
 app = FastAPI(
     title="ApexSovereign PayPal Commercial Webhook Gateway",
     version="2026.10.18-PROD",
-    docs_url="/docs" if PAYPAL_MODE != "live" else None,
+    docs_url="/docs" if PAYPAL_ENV != "live" else None,
     redoc_url=None
 )
 
@@ -366,7 +371,7 @@ async def healthz():
     return {
         "status": "HEALTHY",
         "gateway": "PAYPAL_COMMERCIAL_WEBHOOK",
-        "mode": PAYPAL_MODE,
+        "mode": PAYPAL_ENV,
         "cu_rate": f"$1.00 USD = {CU_PER_USD} CU",
         "timestamp": datetime.now(timezone.utc).isoformat()
     }

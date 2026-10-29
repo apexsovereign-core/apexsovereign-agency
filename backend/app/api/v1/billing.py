@@ -13,6 +13,7 @@ Features:
 from __future__ import annotations
 
 import datetime
+import json
 import logging
 from typing import Any, Dict
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
@@ -34,6 +35,9 @@ from backend.app.services.email_service import get_email_service
 
 logger = logging.getLogger("apexsovereign.billing.router")
 router = APIRouter(prefix="/billing", tags=["Enterprise Billing & Payments"])
+
+# Bound the raw webhook body before signature verification or JSON parsing.
+MAX_WEBHOOK_BODY_BYTES = 1_048_576
 
 
 @router.post(
@@ -373,11 +377,29 @@ async def handle_paypal_webhook(
     Public webhook receiver endpoint for PayPal.
     STRICT SECURITY: Cryptographically verifies headers against PAYPAL_WEBHOOK_ID before DB mutations.
     """
-    raw_body = await request.json()
+    raw_body_bytes = await request.body()
+    if len(raw_body_bytes) > MAX_WEBHOOK_BODY_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Webhook body exceeds the maximum accepted size.",
+        )
+    try:
+        raw_body_text = raw_body_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Webhook body must be UTF-8 encoded JSON.",
+        )
+
     headers_dict = dict(request.headers)
 
-    # 1. Cryptographic Signature Validation
-    is_valid = await paypal.verify_webhook_signature(headers=headers_dict, raw_body=raw_body)
+    # 1. Cryptographic Signature Validation. PayPal signs the exact bytes on
+    # the wire, so verification must run on the raw body string before any
+    # JSON parsing or schema mapping can normalize the payload.
+    is_valid = await paypal.verify_webhook_signature(
+        headers=headers_dict,
+        raw_body=raw_body_text,
+    )
     if not is_valid:
         logger.warning("Rejected unverified PayPal webhook event.")
         raise HTTPException(
@@ -385,7 +407,21 @@ async def handle_paypal_webhook(
             detail="Cryptographic verification failed: Webhook signature does not match configured PAYPAL_WEBHOOK_ID.",
         )
 
-    # 2. Extract Event Details
+    # 2. Parse only after the signature has been verified.
+    try:
+        raw_body = json.loads(raw_body_text)
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Webhook body is not valid JSON.",
+        )
+    if not isinstance(raw_body, dict):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Webhook body must be a JSON object.",
+        )
+
+    # 3. Extract Event Details
     event_id = raw_body.get("id", "UNKNOWN_EVENT")
     event_type = raw_body.get("event_type", "UNKNOWN_TYPE")
     resource = raw_body.get("resource", {})
@@ -395,7 +431,7 @@ async def handle_paypal_webhook(
     idempotent_replay = False
     details: Dict[str, Any] = {"raw_event_type": event_type}
 
-    # 3. Handle PAYMENT.CAPTURE.COMPLETED
+    # 4. Handle PAYMENT.CAPTURE.COMPLETED
     if event_type == "PAYMENT.CAPTURE.COMPLETED":
         custom_id = resource.get("custom_id", "")
         capture_id = resource.get("id")
@@ -483,7 +519,7 @@ async def handle_paypal_webhook(
                     except Exception as coo_err:
                         logger.warning("Webhook: n8n dispatch non-blocking warning: %s", coo_err)
 
-    # 4. Handle PAYMENT.CAPTURE.REFUNDED, REVERSED, and CUSTOMER.DISPUTE.*
+    # 5. Handle PAYMENT.CAPTURE.REFUNDED, REVERSED, and CUSTOMER.DISPUTE.*
     elif event_type in (
         "PAYMENT.CAPTURE.REFUNDED",
         "PAYMENT.CAPTURE.REVERSED",

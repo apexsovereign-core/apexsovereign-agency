@@ -33,11 +33,13 @@ async def run_metering_cycle():
 
     query = """
         SELECT c.id, c.owner_id, c.burn_cu_hr, c.accrued_cu, c.last_metered_at, c.started_at,
-               w.id as wallet_id, e.id as escrow_id, rev.id as revenue_id
+               w.id AS wallet_id, w.code AS wallet_code,
+               e.id AS escrow_id, e.code AS escrow_code,
+               rev.id AS revenue_id, rev.code AS revenue_code
         FROM apex.clusters c
         JOIN apex.accounts e ON e.owner_id = c.owner_id AND e.kind = 'user_escrow'
         JOIN apex.accounts w ON w.owner_id = c.owner_id AND w.kind = 'user_wallet'
-        CROSS JOIN (SELECT id FROM apex.accounts WHERE code = 'platform_revenue' LIMIT 1) rev
+        CROSS JOIN (SELECT id, code FROM apex.accounts WHERE code = 'platform_revenue' LIMIT 1) rev
         WHERE c.status = 'running' AND c.demo = FALSE;
     """
     try:
@@ -61,8 +63,18 @@ async def run_metering_cycle():
             idempotency_key = f"metering:{cl['id']}:{interval_tag}"
 
             lines = [
-                {"account_id": str(cl["escrow_id"]), "direction": "debit", "amount_cu": charge_cu},
-                {"account_id": str(cl["revenue_id"]), "direction": "credit", "amount_cu": charge_cu}
+                {
+                    "account_id": str(cl["escrow_id"]),
+                    "account_code": cl["escrow_code"],
+                    "direction": "debit",
+                    "amount_cu": charge_cu,
+                },
+                {
+                    "account_id": str(cl["revenue_id"]),
+                    "account_code": cl["revenue_code"],
+                    "direction": "credit",
+                    "amount_cu": charge_cu,
+                },
             ]
 
             try:

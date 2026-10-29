@@ -13,7 +13,7 @@ from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 
 from backend.app.config import get_settings
-from backend.app.db.session import get_pool
+from backend.app.db_legacy.session import get_pool
 
 logger = logging.getLogger("apexsovereign.health")
 router = APIRouter(tags=["Health & Diagnostics"])

@@ -40,28 +40,10 @@ MAX_RATE_PER_SECOND = 100       # 100 requests per second per tenant
 TENANT_RATE_BUCKETS: Dict[str, List[float]] = {}
 
 # Active Vault Keys: { tenant_id: { "token": str, "token_hash": str, "alias": str, "created_at": str, "expires_at": str } }
-ACTIVE_VAULT_KEYS: Dict[str, Dict[str, Any]] = {
-    "tenant-sovereign-01": {
-        "alias": "primary-institutional-key",
-        "token": "REDACTED",
-        "token_hash": hashlib.sha256("REDACTED".encode()).hexdigest(),
-        "hmac_secret": os.getenv("APEX_HMAC_SECRET", "apex-vault-sovereign-secret-2026"),
-        "permissions": ["compute:dispatch", "agent:swarm", "crm:read", "billing:settle", "telemetry:stream"],
-        "created_at": "2026-09-23T00:00:00Z",
-        "expires_at": "2027-09-23T00:00:00Z",
-        "status": "ACTIVE_ARMED",
-    },
-    "tenant-admin-node01": {
-        "alias": "root-core-infrastructure-key",
-        "token": "REDACTED",
-        "token_hash": hashlib.sha256("REDACTED".encode()).hexdigest(),
-        "hmac_secret": os.getenv("APEX_HMAC_SECRET", "apex-vault-sovereign-secret-2026"),
-        "permissions": ["*"],
-        "created_at": "2026-09-23T00:00:00Z",
-        "expires_at": "2027-09-23T00:00:00Z",
-        "status": "ACTIVE_ARMED",
-    },
-}
+# No seeded keys. Vault entries are created only by the token-rotation
+# endpoint, which generates a random token per request. A hardcoded seed
+# would put a usable bearer credential in source control.
+ACTIVE_VAULT_KEYS: Dict[str, Dict[str, Any]] = {}
 
 # Replay nonce cache with timestamps
 SEEN_NONCES: Dict[str, float] = {}

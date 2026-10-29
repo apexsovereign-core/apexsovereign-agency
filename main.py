@@ -9,6 +9,15 @@ from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
+try:
+    from backend.paypal_env import resolve_paypal_env
+except ImportError:  # Executed from inside the backend directory.
+    from paypal_env import resolve_paypal_env
+
+# Sandbox is the absolute default; live mode aborts startup without the founder
+# override token.
+PAYPAL_ENV = resolve_paypal_env()
+
 # Initialize FastAPI App
 app = FastAPI(title="ApexSovereign Revenue Engine", version="21.0")
 
@@ -247,8 +256,8 @@ async def get_public_config():
         "launch_mode": "early_access",
         "provider_mode": os.getenv("PROVIDER_MODE", "simulated"),
         "payments_enabled": True,
-        "paypal_client_id": os.getenv("PAYPAL_CLIENT_ID", "sandbox_client_id"),
-        "paypal_env": os.getenv("PAYPAL_ENV", "live"),
+        "paypal_client_id": os.getenv("PAYPAL_CLIENT_ID", ""),
+        "paypal_env": PAYPAL_ENV,
         "auth_provider": "supabase",
         "ledger_conversion": {"usd": 1, "compute_units": 100},
         "ledger_hmac_kid": "k1"
@@ -536,7 +545,7 @@ async def build_health_matrix_payload() -> Dict[str, Any]:
         "environment_vault": {
             "supabase_ledger_bound": supabase_configured,
             "paypal_gateway_bound": paypal_configured,
-            "paypal_env": os.getenv("PAYPAL_ENV", "live")
+            "paypal_env": PAYPAL_ENV
         },
         "subsystems": {
             "mesh_engine": "ACTIVE",

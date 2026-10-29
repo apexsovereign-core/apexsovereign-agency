@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 from asyncpg.connection import Connection
 
 from backend.app.api.deps import get_db_tx, require_api_key
-from backend.app.db.session import get_db_pool
+from backend.app.db_legacy.session import get_db_pool
 
 logger = logging.getLogger("apexsovereign.fleet_security")
 router = APIRouter(prefix="/security/fleet", tags=["Autonomous Fleet Security & Intrusion Detection"])

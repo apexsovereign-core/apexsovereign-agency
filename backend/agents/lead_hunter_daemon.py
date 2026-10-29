@@ -31,7 +31,28 @@ logger = logging.getLogger("apexsovereign.agents.leadhunter")
 # 1. CORE OPERATIONAL PARAMETERS & ARBITRAGE CONSTANTS
 # ------------------------------------------------------------------------------
 PRIMARY_DOMAIN = os.getenv("PRIMARY_DOMAIN", "apexsovereign.ai")
-HMAC_SECRET = os.getenv("APEX_SETTLEMENT_HMAC_SECRET", "REDACTED").encode("utf-8")
+
+
+def _require_settlement_hmac_secret() -> bytes:
+    """Load the settlement signing key or refuse to start.
+
+    A missing key is a hard failure. Falling back to a built-in value would
+    silently sign settlement payloads with a key that is public in git history.
+    """
+    raw = (os.getenv("APEX_SETTLEMENT_HMAC_SECRET") or "").strip()
+    if not raw:
+        raise RuntimeError(
+            "APEX_SETTLEMENT_HMAC_SECRET is not set; refusing to start the lead "
+            "hunter daemon without a settlement signing key."
+        )
+    if len(raw) < 32:
+        raise RuntimeError(
+            "APEX_SETTLEMENT_HMAC_SECRET is too short; expected at least 32 characters."
+        )
+    return raw.encode("utf-8")
+
+
+HMAC_SECRET = _require_settlement_hmac_secret()
 CU_PER_USD = float(os.getenv("USD_TO_CU_RATIO", "100.000000"))
 MIN_ESCROW_DEPOSIT_USD = float(os.getenv("MIN_ESCROW_DEPOSIT_USD", "10.00"))
 

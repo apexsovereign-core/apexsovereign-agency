@@ -21,7 +21,7 @@ from fastapi import Depends, HTTPException, Request, Security, status
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
 
-from backend.app.db.session import get_db_pool
+from backend.app.db_legacy.session import get_db_pool
 
 API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 

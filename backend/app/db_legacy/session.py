@@ -20,7 +20,7 @@ import asyncpg
 from asyncpg.pool import Pool
 from asyncpg.connection import Connection
 
-from backend.app.config import get_settings
+from backend.app.config import settings
 
 logger = logging.getLogger("apexsovereign.db")
 
@@ -37,7 +37,6 @@ async def init_db_pool() -> Pool:
     if _pool is not None and not _pool._closed:
         return _pool
 
-    settings = get_settings()
     logger.info(
         "Initializing asyncpg connection pool [min=%d, max=%d, timeout=%.1fs]...",
         settings.DB_POOL_MIN_SIZE,

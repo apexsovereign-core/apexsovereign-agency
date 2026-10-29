@@ -28,7 +28,7 @@ async def get_health_probe(response: Response) -> Dict[str, Any]:
     Returns HTTP 503 with status: 'degraded' if database connectivity fails.
     """
     db_ok = await db.check_db_health()
-    overall_status = "ok" if db_ok or (not settings.DATABASE_URL) else "degraded"
+    overall_status = "ok" if db_ok else "degraded"
 
     if overall_status == "degraded":
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
@@ -40,7 +40,8 @@ async def get_health_probe(response: Response) -> Dict[str, Any]:
         "router_host": settings.RENDER_EXTERNAL_HOSTNAME,
         "engine": "fastapi",
         "provider_mode": settings.PROVIDER_MODE,
-        "db": "ok" if db_ok else ("disconnected" if not settings.DATABASE_URL else "down")
+        "demo_mode": settings.DEMO_MODE,
+        "db": "ok" if db_ok else "down",
     }
 
 
@@ -55,8 +56,8 @@ async def get_telemetry_summary() -> Dict[str, Any]:
     db_ok = await db.check_db_health()
     server_latency_ms = round((time.perf_counter() - started) * 1000.0, 2)
     return {
-        "backend": "HEALTHY" if db_ok or not settings.DATABASE_URL else "DEGRADED",
-        "telemetry": "OPERATIONAL",
+        "backend": "HEALTHY" if db_ok else "DEGRADED",
+        "telemetry": "OPERATIONAL" if db_ok else "UNAVAILABLE",
         "provider_mode": settings.PROVIDER_MODE,
         "region": settings.RENDER_EXTERNAL_HOSTNAME or "render",
         "server_latency_ms": server_latency_ms,
@@ -83,6 +84,7 @@ async def get_public_config() -> Dict[str, Any]:
         "payments_enabled": settings.payments_enabled,
         "paypal_client_id": settings.PAYPAL_CLIENT_ID,
         "paypal_env": settings.PAYPAL_ENV,
+        "demo_mode": settings.DEMO_MODE,
         "ledger_hmac_kid": settings.LEDGER_HMAC_KID,
         "deposit_limits": {
             "max_tx_cents": settings.DEPOSIT_MAX_TX_CENTS,

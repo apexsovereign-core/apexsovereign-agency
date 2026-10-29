@@ -165,13 +165,15 @@ class RestSupplierProvider(ComputeProvider):
 
     async def provision(self, cluster_spec: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         # 1. Fetch user wallet and escrow accounts
-        wallet_row = await db.fetch_one("SELECT id FROM apex.accounts WHERE owner_id = %s AND kind = 'user_wallet';", (user_id,))
-        escrow_row = await db.fetch_one("SELECT id FROM apex.accounts WHERE owner_id = %s AND kind = 'user_escrow';", (user_id,))
+        wallet_row = await db.fetch_one("SELECT id, code FROM apex.accounts WHERE owner_id = %s AND kind = 'user_wallet';", (user_id,))
+        escrow_row = await db.fetch_one("SELECT id, code FROM apex.accounts WHERE owner_id = %s AND kind = 'user_escrow';", (user_id,))
         if not wallet_row or not escrow_row:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"error": {"code": "no_account", "message": "User accounts not initialized."}})
 
         wallet_id = str(wallet_row["id"])
         escrow_id = str(escrow_row["id"])
+        wallet_code = wallet_row["code"]
+        escrow_code = escrow_row["code"]
 
         # 2. Upstream Supplier Call
         async with httpx.AsyncClient(timeout=25.0) as client:
@@ -196,8 +198,8 @@ class RestSupplierProvider(ComputeProvider):
         # 3. Post PROVISION to Ledger: Move Initial 1-Hour Escrow Hold
         burn_cu_hr = int(upstream_data.get("burn_cu_hr", 194))
         tx_lines = [
-            {"account_id": wallet_id, "direction": "debit", "amount_cu": burn_cu_hr},
-            {"account_id": escrow_id, "direction": "credit", "amount_cu": burn_cu_hr}
+            {"account_id": wallet_id, "account_code": wallet_code, "direction": "debit", "amount_cu": burn_cu_hr},
+            {"account_id": escrow_id, "account_code": escrow_code, "direction": "credit", "amount_cu": burn_cu_hr}
         ]
         await ledger.post_ledger_transaction(
             tx_type="PROVISION",
@@ -233,17 +235,19 @@ class RestSupplierProvider(ComputeProvider):
             release_data = res.json()
 
         # Return unused escrow to wallet
-        escrow_row = await db.fetch_one("SELECT id FROM apex.accounts WHERE owner_id = %s AND kind = 'user_escrow';", (user_id,))
-        wallet_row = await db.fetch_one("SELECT id FROM apex.accounts WHERE owner_id = %s AND kind = 'user_wallet';", (user_id,))
+        escrow_row = await db.fetch_one("SELECT id, code FROM apex.accounts WHERE owner_id = %s AND kind = 'user_escrow';", (user_id,))
+        wallet_row = await db.fetch_one("SELECT id, code FROM apex.accounts WHERE owner_id = %s AND kind = 'user_wallet';", (user_id,))
         if escrow_row and wallet_row:
             escrow_id = str(escrow_row["id"])
             wallet_id = str(wallet_row["id"])
+            escrow_code = escrow_row["code"]
+            wallet_code = wallet_row["code"]
             escrow_bal = await db.fetch_one("SELECT apex.account_balance(%s::uuid) AS bal;", (escrow_id,))
             remaining_escrow = escrow_bal["bal"] if escrow_bal else 0
             if remaining_escrow > 0:
                 refund_lines = [
-                    {"account_id": escrow_id, "direction": "debit", "amount_cu": remaining_escrow},
-                    {"account_id": wallet_id, "direction": "credit", "amount_cu": remaining_escrow}
+                    {"account_id": escrow_id, "account_code": escrow_code, "direction": "debit", "amount_cu": remaining_escrow},
+                    {"account_id": wallet_id, "account_code": wallet_code, "direction": "credit", "amount_cu": remaining_escrow}
                 ]
                 await ledger.post_ledger_transaction(
                     tx_type="RELEASE",

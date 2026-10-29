@@ -11,7 +11,7 @@ from fastapi import Depends
 from asyncpg.connection import Connection
 
 from backend.app.core.security import verify_api_key
-from backend.app.db.session import get_db_transaction
+from backend.app.db_legacy.session import get_db_transaction
 from backend.app.services.paypal_service import PayPalService, get_paypal_service
 
 

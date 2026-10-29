@@ -1,5 +1,8 @@
 # =============================================================================
 # APEXSOVEREIGN.AI - RENDER DEPLOYMENT SPECIFICATION (BLUEPRINT)
+# DECOMMISSIONED: Vercel serverless (api/*.ts) is the primary backend.
+# This blueprint is retained for rollback only. Do not route production traffic
+# to Render. PayPal settlement remains sandbox-only by default.
 # Service Name: apexsovereign-mesh
 # Hostname: apexsovereign-mesh.onrender.com
 # Region: ohio (Render's available US-East-adjacent region; verify measured edge RTT separately)

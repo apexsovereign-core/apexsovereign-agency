@@ -19,10 +19,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-PAYPAL_MODE = os.getenv("PAYPAL_MODE", "live").lower()
-PAYPAL_BASE_URL = (
-    "https://api-m.paypal.com" if PAYPAL_MODE == "live" else "https://api-m.sandbox.paypal.com"
-)
+try:  # ``python backend/paypal_gateway.py`` / ``import paypal_gateway``.
+    from paypal_env import paypal_api_base, resolve_paypal_env
+except ImportError:  # ``import backend.paypal_gateway`` from the repo root.
+    from backend.paypal_env import paypal_api_base, resolve_paypal_env
+
+# Canonical switch: PAYPAL_ENV (sandbox by default).
+PAYPAL_ENV = resolve_paypal_env()
+PAYPAL_BASE_URL = paypal_api_base(PAYPAL_ENV)
 PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
 PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "")
 PAYPAL_WEBHOOK_ID = os.getenv("PAYPAL_WEBHOOK_ID", "")
@@ -74,7 +78,9 @@ def get_paypal_bearer_token() -> str:
         return _token_cache["token"]
 
     if not PAYPAL_CLIENT_ID or not PAYPAL_CLIENT_SECRET:
-        return "mock-paypal-bearer-token"
+        # Never return a placeholder token: a placeholder can only produce a
+        # misleading verification attempt. Callers must fail closed.
+        return ""
 
     url = f"{PAYPAL_BASE_URL}/v1/oauth2/token"
     auth = (PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET)
@@ -90,7 +96,7 @@ def get_paypal_bearer_token() -> str:
         return _token_cache["token"]
     except Exception as exc:
         print(f"[PayPal Gateway Auth Error] {exc}")
-        return "mock-paypal-bearer-token"
+        return ""
 
 
 def verify_paypal_signature(raw_body: bytes, headers: Dict[str, str]) -> bool:
@@ -115,6 +121,9 @@ def verify_paypal_signature(raw_body: bytes, headers: Dict[str, str]) -> bool:
         return False
 
     token = get_paypal_bearer_token()
+    if not token:
+        print("[CRITICAL SECURITY] PayPal webhook verification could not obtain a bearer token.")
+        return False
     verify_url = f"{PAYPAL_BASE_URL}/v1/notifications/verify-webhook-signature"
     verify_headers = {
         "Content-Type": "application/json",
@@ -147,10 +156,11 @@ def verify_paypal_signature(raw_body: bytes, headers: Dict[str, str]) -> bool:
                 return False
     except Exception as err:
         print(f"[PayPal Webhook Verification Network Exception] {err}")
-        if PAYPAL_MODE == "live":
-            return False
+        # Always fail closed. A network failure is not evidence that an event is
+        # authentic, in sandbox or live.
+        return False
 
-    return False if PAYPAL_MODE == "live" else True
+    return False
 
 
 def provision_tenant_in_supabase(tenant_id: str, company_name: str, subscription_id: str, initial_credits: float):
@@ -196,13 +206,15 @@ def allocate_compute_units_supabase_rpc(
     { "success": True, "allocated": True/False, "replay_blocked": True/False }
     """
     if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-        print(f"[Supabase RPC Notice] Supabase credentials unconfigured. Local atomic settlement simulated for {paypal_order_id}.")
+        # A missing ledger backend must never produce a successful settlement
+        # response. Fail closed with a stable error code instead.
+        print("[CRITICAL] Supabase RPC credentials are not configured; settlement refused.")
         return {
-            "success": True,
-            "allocated": True,
-            "units": units,
+            "success": False,
+            "error": "ledger_unavailable",
+            "allocated": False,
             "replay_blocked": False,
-            "simulated": True,
+            "simulated": False,
         }
 
     endpoint = f"{SUPABASE_URL}/rest/v1/rpc/allocate_compute_units"
@@ -267,16 +279,31 @@ async def verify_paypal_order_endpoint(req: VerifyPayPalOrderRequest):
         raise HTTPException(status_code=400, detail="Missing required field: order_id")
     if not tenant_id:
         raise HTTPException(status_code=400, detail="Missing required field: tenant_id")
+    if not PAYPAL_CLIENT_ID or not PAYPAL_CLIENT_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"error": {"code": "paypal_unavailable"}},
+        )
 
-    units = req.units or req.compute_units or req.credits_requested or 25000.0
-    amount = req.amount or req.expected_amount or 199.00
+    units = req.units or req.compute_units or req.credits_requested
+    amount = req.amount or req.expected_amount
+    if units is None or amount is None:
+        raise HTTPException(
+            status_code=400,
+            detail="units and amount are required; they are never defaulted.",
+        )
 
-    order_status = "COMPLETED"
-    capture_id = f"CAP-{uuid.uuid4().hex[:12].upper()}"
+    order_status = None
+    capture_id = None
 
     # Step 1: PayPal v2 API Order Validation
     if PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET:
         token = get_paypal_bearer_token()
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail={"error": {"code": "paypal_auth_unavailable"}},
+            )
         order_url = f"{PAYPAL_BASE_URL}/v2/checkout/orders/{order_id}"
         auth_headers = {
             "Content-Type": "application/json",
@@ -299,7 +326,7 @@ async def verify_paypal_order_endpoint(req: VerifyPayPalOrderRequest):
                         try:
                             capture_id = cap_json["purchase_units"][0]["payments"]["captures"][0]["id"]
                         except (KeyError, IndexError):
-                            pass
+                            capture_id = None
                     else:
                         raise HTTPException(
                             status_code=400,
@@ -311,7 +338,7 @@ async def verify_paypal_order_endpoint(req: VerifyPayPalOrderRequest):
                         if captures:
                             capture_id = captures[0]["id"]
                     except (KeyError, IndexError):
-                        pass
+                        capture_id = None
                 else:
                     raise HTTPException(
                         status_code=400,
@@ -320,16 +347,31 @@ async def verify_paypal_order_endpoint(req: VerifyPayPalOrderRequest):
             elif get_resp.status_code == 404:
                 raise HTTPException(status_code=404, detail=f"PayPal order ID {order_id} not found.")
             else:
-                print(f"[PayPal Verify Notice] Status {get_resp.status_code}: {get_resp.text}")
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail={"error": {"code": "paypal_order_lookup_failed"}},
+                )
         except HTTPException:
             raise
         except Exception as api_err:
-            print(f"[PayPal API Warning] Live order validation fallback: {api_err}")
-            if PAYPAL_MODE == "live":
-                raise HTTPException(
-                    status_code=502,
-                    detail=f"Live PayPal v2 API unreachable: {api_err}"
-                )
+            # Never continue to settlement when PayPal could not be reached.
+            print(f"[PayPal API Error] Order validation failed: {api_err}")
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail={"error": {"code": "paypal_unreachable"}},
+            )
+
+    if order_status != "COMPLETED" or not capture_id:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"error": {"code": "paypal_capture_unverified"}},
+        )
+
+    if units <= 0 or amount <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="units and amount must be positive.",
+        )
 
     # Step 2: Atomic Database Sync with Zero-Replay Protection via Supabase RPC
     rpc_result = allocate_compute_units_supabase_rpc(
@@ -339,10 +381,13 @@ async def verify_paypal_order_endpoint(req: VerifyPayPalOrderRequest):
         amount=amount,
     )
 
-    if not rpc_result["success"] and not rpc_result.get("simulated"):
+    if not rpc_result["success"]:
+        error_code = rpc_result.get("error") or "ledger_write_failed"
         raise HTTPException(
-            status_code=500,
-            detail=f"Database atomic settlement error: {rpc_result.get('error')}"
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE
+            if error_code == "ledger_unavailable"
+            else 500,
+            detail={"error": {"code": error_code}},
         )
 
     is_replay = rpc_result.get("replay_blocked", False)
@@ -356,7 +401,6 @@ async def verify_paypal_order_endpoint(req: VerifyPayPalOrderRequest):
         "capture_status": "PAYMENT.CAPTURE.COMPLETED",
         "compute_units_allocated": units,
         "amount_paid_usd": amount,
-        "ledger_entry_id": f"ldg_{uuid.uuid4().hex[:12]}",
         "zero_replay_protected": True,
         "already_credited": is_replay,
         "verified_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -407,7 +451,7 @@ async def gateway_telemetry_health():
         "status": "OPERATIONAL",
         "gateway": "PayPal Webhook Cryptographic Telemetry Gateway",
         "paths": ["/api/webhooks/paypal", "/v3/engine/telemetry/billing/gateway", "/billing/webhook"],
-        "mode": PAYPAL_MODE,
+        "mode": PAYPAL_ENV,
         "coo_gateway_configured": bool(os.getenv("N8N_COO_GATEWAY_WEBHOOK_URL") or os.getenv("COO_GATEWAY_WEBHOOK_URL")),
         "security": "Asymmetric RSA-SHA256 & Transmission Digest Verification",
         "timestamp": int(time.time()),

@@ -21,7 +21,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from asyncpg.connection import Connection
 
 from backend.app.api.deps import get_db_tx, require_api_key
-from backend.app.db.session import get_db_pool
+from backend.app.db_legacy.session import get_db_pool
 
 logger = logging.getLogger("apexsovereign.audit_compliance")
 router = APIRouter(prefix="/compliance/audit-logs", tags=["SOC 2 Compliance & Tamper-Evident Logs"])
